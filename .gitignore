@@ -24,7 +24,6 @@ dist/
 # Prisma & Databases
 *.db
 *.db-journal
-postgres-data/  # ถ้าใน docker-compose.yml มีการผูก volume ไว้ที่เครื่องตัวเอง
 
 # OS Files & IDEs
 .DS_Store
