@@ -1,6 +1,8 @@
+import "dotenv/config"
 import { Elysia } from "elysia"
 import { cors } from "@elysiajs/cors"
 import { auth } from "./lib/auth"
+import { analysisRoutes } from "./routes/analysis.routes"
 
 const app = new Elysia()
   .use(cors({
@@ -10,6 +12,7 @@ const app = new Elysia()
   .all("/api/auth/*", async (context) => {
     return auth.handler(context.request)
   })
+  .use(analysisRoutes)
   .get("/health", () => ({ status: "ok" }))
   .listen(3001)
 
