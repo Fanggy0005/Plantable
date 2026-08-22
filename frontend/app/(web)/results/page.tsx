@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
 
 interface PlantResult {
   plantId: string
@@ -27,6 +28,16 @@ export default function ResultsPage() {
   const router = useRouter()
   const [result, setResult] = useState<Result | null>(null)
 
+  const handleExport = async () => {
+    if (!result) return
+    try {
+      const { exportToPDF } = await import("@/lib/export-pdf")
+      await exportToPDF(result)
+    } catch (error) {
+      console.error("PDF export failed:", error)
+    }
+  }
+
   useEffect(() => {
     const data = sessionStorage.getItem("plantResult")
     if (!data) {
@@ -46,6 +57,9 @@ export default function ResultsPage() {
           N: {result.soil.nitrogen} | P: {result.soil.phosphorus} | K: {result.soil.potassium} | pH: {result.soil.ph}
         </p>
       </div>
+      <Button onClick={handleExport}>
+        Export PDF
+      </Button>
 
       <div className="space-y-4">
         {result.rankings.map((plant, index) => (
