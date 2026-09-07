@@ -1,58 +1,95 @@
-import Elysia, { t } from "elysia"
-import { recommend } from "../services/recommendation"
-import { PrismaClient } from "../generated/prisma"
-import { PrismaPg } from "@prisma/adapter-pg"
+import { Elysia, t } from "elysia"
+import { analysisController } from "../controllers/analysis.controller"
+import { SoilInputSchema } from "../validators/analysis.schema"
 import { auth } from "../lib/auth"
+import { errorResponse } from "../utils/response"
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-const prisma = new PrismaClient({ adapter })
-
-export const analysisRoutes = new Elysia({ prefix: "/api/analysis" })
+export const analysisRoutes = new Elysia({ prefix: "/api" })
+  // RESTful standard endpoints as per docs/api-spec.md
   .post(
-    "/recommend",
+    "/analyses",
     async ({ body, request }) => {
-      const result = recommend(body)
-
-      // เช็ค session — ถ้า login อยู่ให้ save
       const session = await auth.api.getSession({ headers: request.headers })
-      if (session?.user?.id) {
-        await prisma.analysis.create({
-          data: {
-            nitrogen: body.nitrogen,
-            phosphorus: body.phosphorus,
-            potassium: body.potassium,
-            ph: body.ph,
-            result: JSON.parse(JSON.stringify(result.rankings)),
-            userId: session.user.id,
-          },
-        })
-      }
-
-      return result
+      const userId = session?.user?.id
+      return analysisController.createAnalysis(body, userId)
     },
     {
-      body: t.Object({
-        nitrogen: t.Number(),
-        phosphorus: t.Number(),
-        potassium: t.Number(),
-        ph: t.Number(),
-      }),
+      body: SoilInputSchema,
     }
   )
   .get(
-    "/history",
+    "/analyses/history",
+    async ({ request }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session?.user?.id) {
+        return errorResponse("Unauthorized: Please log in to view analysis history")
+      }
+      return analysisController.getUserHistory(session.user.id)
+    }
+  )
+  .get(
+    "/analyses/:id",
+    async ({ params: { id } }) => {
+      return analysisController.getAnalysisById(id)
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+    }
+  )
+  // Real-time calculation endpoint
+  .post(
+    "/recommendations",
+    async ({ body }) => {
+      return analysisController.computeInstantRecommendation(body)
+    },
+    {
+      body: SoilInputSchema,
+    }
+  )
+  // Backward compatibility for existing endpoints
+  .post(
+    "/analysis/recommend",
+    async ({ body, request }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+      const userId = session?.user?.id
+      const res = await analysisController.createAnalysis(body, userId)
+      if (res.success && res.data) {
+        return {
+          soil: res.data.soil,
+          analysisId: res.data.analysisId,
+          rankings: res.data.recommendations.map((r: any) => ({
+            plantId: r.cropId,
+            name: r.cropName,
+            nameTh: r.cropNameTh,
+            scientificName: r.scientificName,
+            category: r.category,
+            description: r.description,
+            imageUrl: r.imageUrl,
+            score: r.score,
+            level: r.level,
+            breakdown: r.breakdown,
+            reasons: r.reasons,
+            improvements: r.improvementSuggestions,
+            cropRequirement: r.cropRequirement,
+          })),
+        }
+      }
+      return res
+    },
+    {
+      body: SoilInputSchema,
+    }
+  )
+  .get(
+    "/analysis/history",
     async ({ request }) => {
       const session = await auth.api.getSession({ headers: request.headers })
       if (!session?.user?.id) {
         return { error: "Unauthorized" }
       }
-
-      const analyses = await prisma.analysis.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      })
-
-      return analyses
+      const history = await analysisController.getUserHistory(session.user.id)
+      return history.data || []
     }
   )

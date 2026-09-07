@@ -13,20 +13,22 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid())
   email         String    @unique
   name          String?
+  image         String?
   emailVerified Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   sessions      Session[]
   accounts      Account[]
-  analyses      Analysis[]
+  analyses      SoilAnalysis[]
+  favorites     FavoriteCrop[]
 }
 
 model Session {
-  id          String      @id @default(cuid())
+  id          String      @id @default(uuid())
   expiresAt   DateTime
   token       String      @unique
   ipAddress   String?
@@ -38,7 +40,7 @@ model Session {
 }
 
 model Account {
-  id           String    @id @default(cuid())
+  id           String    @id @default(uuid())
   accountId    String
   providerId   String
   userId       String
@@ -53,7 +55,7 @@ model Account {
 }
 
 model Verification {
-  id         String   @id @default(cuid())
+  id         String   @id @default(uuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -61,15 +63,94 @@ model Verification {
   updatedAt  DateTime @updatedAt
 }
 
-model Analysis {
-  id         String   @id @default(cuid())
-  nitrogen   Float
-  phosphorus Float
-  potassium  Float
-  ph         Float
-  result     Json     @default("[]")
-  createdAt  DateTime @default(now())
+model Crop {
+  id             String           @id @default(uuid())
+  name           String           @unique
+  nameTh         String
+  scientificName String?
+  category       String           // e.g., Grain, Vegetable, Fruit, Cash Crop
+  description    String?
+  imageUrl       String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requirement    CropRequirement?
+  recommendations Recommendation[]
+  favoritedBy    FavoriteCrop[]
+
+  @@index([name])
 }
+
+model CropRequirement {
+  id                String   @id @default(uuid())
+  cropId            String   @unique
+  crop              Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  nitrogenMin       Float
+  nitrogenMax       Float
+  nitrogenOptimal   Float
+  phosphorusMin     Float
+  phosphorusMax     Float
+  phosphorusOptimal Float
+  potassiumMin      Float
+  potassiumMax      Float
+  potassiumOptimal  Float
+  phMin             Float
+  phMax             Float
+  phOptimal         Float
+  organicMatterMin  Float?
+  organicMatterMax  Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SoilAnalysis {
+  id            String           @id @default(uuid())
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  nitrogen      Float
+  phosphorus    Float
+  potassium     Float
+  ph            Float
+  organicMatter Float?
+  moisture      Float?
+  notes         String?
+  createdAt     DateTime         @default(now())
+
+  recommendations Recommendation[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Recommendation {
+  id                     String       @id @default(uuid())
+  soilAnalysisId         String
+  soilAnalysis           SoilAnalysis @relation(fields: [soilAnalysisId], references: [id], onDelete: Cascade)
+  cropId                 String
+  crop                   Crop         @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  suitabilityScore       Float
+  recommendationLevel    String       // Excellent, Good, Fair, Poor, Not Recommended
+  nitrogenScore          Float
+  phosphorusScore        Float
+  potassiumScore         Float
+  phScore                Float
+  reasons                Json         // string[]
+  improvementSuggestions Json         // string[]
+  createdAt              DateTime     @default(now())
+
+  @@index([soilAnalysisId])
+  @@index([cropId])
+  @@index([suitabilityScore])
+}
+
+model FavoriteCrop {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cropId    String
+  crop      Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, cropId])
+}
+

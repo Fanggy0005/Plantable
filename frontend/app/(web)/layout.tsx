@@ -1,7 +1,16 @@
+import { Navbar } from "@/components/Navbar"
+import { Footer } from "@/components/Footer"
+
 export default function WebLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Navbar />
+      <main className="flex-1">{children}</main>
+      <Footer />
+    </div>
+  )
 }

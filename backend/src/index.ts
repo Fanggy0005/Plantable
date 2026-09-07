@@ -3,6 +3,7 @@ import { Elysia } from "elysia"
 import { cors } from "@elysiajs/cors"
 import { auth } from "./lib/auth"
 import { analysisRoutes } from "./routes/analysis.routes"
+import { cropRoutes } from "./routes/crop.routes"
 
 const app = new Elysia()
   .use(cors({
@@ -13,6 +14,7 @@ const app = new Elysia()
     return auth.handler(context.request)
   })
   .use(analysisRoutes)
+  .use(cropRoutes)
   .get("/health", () => ({ status: "ok" }))
   .listen(3001)
 
