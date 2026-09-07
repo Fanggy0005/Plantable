@@ -15,7 +15,30 @@ export async function recommendPlants(soil: SoilInput): Promise<AnalysisResult> 
     throw new Error(errorBody.message || "Failed to fetch recommendations")
   }
 
-  return res.json()
+  const data = await res.json()
+
+  // Also auto-save to browser local history so guest tests are never lost!
+  try {
+    if (typeof window !== "undefined") {
+      const stored = JSON.parse(localStorage.getItem("plantable_local_history") || "[]")
+      const newEntry = {
+        id: data.analysisId || `local-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        soil: data.soil,
+        recommendations: data.rankings?.slice(0, 3)?.map((r: any) => ({
+          crop: { name: r.name, nameTh: r.nameTh },
+          suitabilityScore: r.score,
+          recommendationLevel: r.level || "Good",
+        })),
+        fullResult: data,
+      }
+      localStorage.setItem("plantable_local_history", JSON.stringify([newEntry, ...stored].slice(0, 20)))
+    }
+  } catch (e) {
+    console.error("Local history cache error:", e)
+  }
+
+  return data
 }
 
 export async function fetchCrops(params?: { search?: string; category?: string }): Promise<Crop[]> {
@@ -45,7 +68,9 @@ export async function fetchCropById(id: string): Promise<Crop> {
 }
 
 export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
-  const res = await fetch(`${API_URL}/api/analyses/${id}`)
+  const res = await fetch(`${API_URL}/api/analyses/${id}`, {
+    credentials: "include",
+  })
   if (!res.ok) {
     throw new Error("Failed to fetch analysis detail")
   }
@@ -72,4 +97,83 @@ export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
       cropRequirement: r.cropRequirement,
     })),
   }
+}
+
+export async function fetchUserHistory(): Promise<any[]> {
+  const res = await fetch(`${API_URL}/api/analyses/history`, {
+    credentials: "include",
+  })
+  if (!res.ok) {
+    return []
+  }
+  const json = await res.json()
+  return json.data || []
+}
+
+export async function deleteAnalysis(id: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/analyses/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  return res.ok
+}
+
+export async function claimAnalysis(id: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/analyses/${id}/claim`, {
+    method: "POST",
+    credentials: "include",
+  })
+  return res.ok
+}
+
+export async function fetchUserProfile(): Promise<any> {
+  const res = await fetch(`${API_URL}/api/users/me`, {
+    credentials: "include",
+  })
+  if (!res.ok) {
+    throw new Error("Failed to fetch profile")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function updateUserProfile(data: { name?: string; image?: string }): Promise<any> {
+  const res = await fetch(`${API_URL}/api/users/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    credentials: "include",
+  })
+  if (!res.ok) {
+    throw new Error("Failed to update profile")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchFavorites(): Promise<Crop[]> {
+  const res = await fetch(`${API_URL}/api/favorites`, {
+    credentials: "include",
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  return json.data || []
+}
+
+export async function addFavorite(cropId: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/favorites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cropId }),
+    credentials: "include",
+  })
+  return res.ok
+}
+
+export async function removeFavorite(cropId: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/favorites/${cropId}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  return res.ok
 }

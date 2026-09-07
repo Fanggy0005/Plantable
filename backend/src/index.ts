@@ -4,6 +4,8 @@ import { cors } from "@elysiajs/cors"
 import { auth } from "./lib/auth"
 import { analysisRoutes } from "./routes/analysis.routes"
 import { cropRoutes } from "./routes/crop.routes"
+import { userRoutes } from "./routes/user.routes"
+import { favoriteRoutes } from "./routes/favorite.routes"
 
 const app = new Elysia()
   .use(cors({
@@ -15,6 +17,8 @@ const app = new Elysia()
   })
   .use(analysisRoutes)
   .use(cropRoutes)
+  .use(userRoutes)
+  .use(favoriteRoutes)
   .get("/health", () => ({ status: "ok" }))
   .listen(3001)
 

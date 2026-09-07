@@ -38,6 +38,24 @@ export class AnalysisController {
       return errorResponse(err.message || "Failed to generate recommendation", [err])
     }
   }
+
+  async deleteAnalysis(id: string, userId: string) {
+    try {
+      await analysisService.deleteAnalysis(id, userId)
+      return successResponse({ success: true }, "Analysis deleted successfully")
+    } catch (err: any) {
+      return errorResponse(err.message || "Failed to delete analysis", [err])
+    }
+  }
+
+  async claimAnalysis(id: string, userId: string) {
+    try {
+      const updated = await analysisService.claimAnalysis(id, userId)
+      return successResponse(updated, "Analysis saved to your account")
+    } catch (err: any) {
+      return errorResponse(err.message || "Failed to save analysis to account", [err])
+    }
+  }
 }
 
 export const analysisController = new AnalysisController()

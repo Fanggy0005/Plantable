@@ -88,6 +88,22 @@ export class AnalysisRepository {
       take: limit,
     })
   }
+
+  async deleteById(id: string, userId: string) {
+    return prisma.soilAnalysis.deleteMany({
+      where: {
+        id,
+        userId,
+      },
+    })
+  }
+
+  async assignUser(id: string, userId: string) {
+    return prisma.soilAnalysis.update({
+      where: { id },
+      data: { userId },
+    })
+  }
 }
 
 export const analysisRepository = new AnalysisRepository()

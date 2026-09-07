@@ -118,6 +118,14 @@ export class AnalysisService {
   async getUserHistory(userId: string) {
     return analysisRepository.findByUserId(userId)
   }
+
+  async deleteAnalysis(id: string, userId: string) {
+    return analysisRepository.deleteById(id, userId)
+  }
+
+  async claimAnalysis(id: string, userId: string) {
+    return analysisRepository.assignUser(id, userId)
+  }
 }
 
 export const analysisService = new AnalysisService()

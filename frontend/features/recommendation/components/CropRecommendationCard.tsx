@@ -12,6 +12,7 @@ import {
   Tag,
 } from "lucide-react"
 import { SuitabilityGauge } from "@/components/charts/SuitabilityGauge"
+import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
 import type { RecommendedCrop } from "@/types"
 
 interface CropRecommendationCardProps {
@@ -70,6 +71,7 @@ export function CropRecommendationCard({
                   {crop.category}
                 </span>
               )}
+              <FavoriteButton cropId={crop.plantId || crop.cropId || ""} />
             </div>
 
             {crop.scientificName && (

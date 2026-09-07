@@ -17,10 +17,12 @@ import { Button } from "@/components/ui/button"
 import { NPKRadarChart } from "@/components/charts/NPKRadarChart"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { CropRecommendationCard } from "@/features/recommendation/components/CropRecommendationCard"
+import { authClient } from "@/lib/auth-client"
 import type { AnalysisResult, RecommendedCrop } from "@/types"
 
 export default function ResultsPage() {
   const router = useRouter()
+  const { data: session } = authClient.useSession()
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [selectedCrop, setSelectedCrop] = useState<RecommendedCrop | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string>("All")
@@ -114,6 +116,21 @@ export default function ResultsPage() {
             <span className="font-bold text-primary">{topCrop?.nameTh}</span> ด้วยคะแนน{" "}
             <span className="font-bold text-foreground">{topCrop?.score}/100</span>
           </p>
+
+          {session?.user ? (
+            <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold border border-emerald-200/60">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              บันทึกในบัญชีของคุณเรียบร้อยแล้ว ({session.user.name || session.user.email})
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs border border-amber-200/60">
+              <span>บันทึกผลในเครื่องนี้เรียบร้อยแล้ว</span>
+              <span>•</span>
+              <Link href="/login" className="font-bold underline hover:text-amber-950 dark:hover:text-amber-200">
+                เข้าสู่ระบบเพื่อซิงค์ประวัติบนคลาวด์
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5">

@@ -38,6 +38,38 @@ export const analysisRoutes = new Elysia({ prefix: "/api" })
       }),
     }
   )
+  .delete(
+    "/analyses/:id",
+    async ({ request, params: { id }, set }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session?.user?.id) {
+        set.status = 401
+        return errorResponse("Unauthorized: Please log in to delete analysis")
+      }
+      return analysisController.deleteAnalysis(id, session.user.id)
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+    }
+  )
+  .post(
+    "/analyses/:id/claim",
+    async ({ request, params: { id }, set }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session?.user?.id) {
+        set.status = 401
+        return errorResponse("Unauthorized: Please log in to save analysis to your account")
+      }
+      return analysisController.claimAnalysis(id, session.user.id)
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+    }
+  )
   // Real-time calculation endpoint
   .post(
     "/recommendations",

@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
+import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
 import { fetchCropById } from "@/lib/api"
 import type { Crop } from "@/types"
 
@@ -101,6 +102,7 @@ export default function CropDetailPage() {
                 <Tag className="h-3 w-3" />
                 {crop.category}
               </span>
+              <FavoriteButton cropId={crop.id} />
             </div>
 
             {crop.scientificName && (
