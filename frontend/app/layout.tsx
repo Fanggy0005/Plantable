@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Sarabun, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const sarabun = Sarabun({
+  weight: ["300", "400", "500", "600", "700"],
+  subsets: ["thai", "latin"],
+  variable: "--font-sarabun",
+  display: "swap",
 });
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -27,10 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+      lang="th"
+      className={cn("h-full", "antialiased", sarabun.variable, geistMono.variable, inter.variable, "font-sans")}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">{children}</body>
     </html>
   );
 }

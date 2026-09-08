@@ -216,7 +216,7 @@ export function SoilInputForm() {
               key={index}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="text-left p-3 rounded-xl bg-card border border-border/80 hover:border-emerald-600 hover:shadow-sm transition-all group"
+              className="text-left p-3 rounded-xl bg-card border border-border/80 hover:border-emerald-600 hover-lift transition-smooth group active:scale-98"
             >
               <p className="text-xs font-bold text-foreground group-hover:text-emerald-700 transition-colors">
                 {preset.name}

@@ -172,7 +172,7 @@ export default function ResultsPage() {
 
       {/* Soil Parameter Overview Chips */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ไนโตรเจน (N)
           </span>
@@ -182,7 +182,7 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ฟอสฟอรัส (P)
           </span>
@@ -192,7 +192,7 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             โพแทสเซียม (K)
           </span>
@@ -202,7 +202,7 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ความเป็นกรด-ด่าง (pH)
           </span>

@@ -140,15 +140,15 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
 
       <CardContent className="p-4 sm:p-6 space-y-6">
         {loading && !weather ? (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground animate-fade-in">
             <RefreshCw className="h-5 w-5 animate-spin mr-2" />
             กำลังดึงข้อมูลสภาพอากาศ...
           </div>
         ) : weather ? (
-          <>
+          <div className="space-y-6 animate-fade-in">
             {/* Top Stat Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
                   <Thermometer className="h-5 w-5" />
                 </div>
@@ -158,7 +158,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
                   <Droplets className="h-5 w-5" />
                 </div>
@@ -168,7 +168,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
                 <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
                   <CloudRain className="h-5 w-5" />
                 </div>
@@ -270,7 +270,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                   {weather.forecast.map((day, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-lg border bg-card text-center flex flex-col justify-between space-y-1 shadow-2xs hover:border-primary/40 transition-colors"
+                      className="p-2.5 rounded-xl border bg-card text-center flex flex-col justify-between space-y-1 shadow-2xs hover-lift transition-smooth hover:border-primary/40"
                     >
                       <p className="text-[11px] font-medium text-muted-foreground">
                         {new Date(day.date).toLocaleDateString("th-TH", {
@@ -296,7 +296,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                 </div>
               </div>
             )}
-          </>
+          </div>
         ) : error ? (
           <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-center text-xs text-destructive">
             {error}

@@ -133,16 +133,16 @@ export function CropEconomicsCard({
 
       <CardContent className="p-4 sm:p-6 space-y-6">
         {loading && !economics ? (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground animate-fade-in">
             <RefreshCw className="h-5 w-5 animate-spin mr-2" />
             กำลังคำนวณต้นทุนและความคุ้มค่า...
           </div>
         ) : economics ? (
-          <>
+          <div className="space-y-6 animate-fade-in">
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Gross Revenue */}
-              <div className="p-4 rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/50 dark:border-emerald-800/40">
+              <div className="p-4 rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/50 dark:border-emerald-800/40 hover-lift transition-smooth">
                 <p className="text-[11px] font-medium text-muted-foreground">รายได้รวมคาดการณ์</p>
                 <p className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-1">
                   ฿{formatNumber(economics.totalProjectedRevenue)}
@@ -153,7 +153,7 @@ export function CropEconomicsCard({
               </div>
 
               {/* Total Costs */}
-              <div className="p-4 rounded-xl border bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/50 dark:border-rose-800/40">
+              <div className="p-4 rounded-xl border bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/50 dark:border-rose-800/40 hover-lift transition-smooth">
                 <p className="text-[11px] font-medium text-muted-foreground">ต้นทุนรวมทั้งหมด</p>
                 <p className="text-xl font-extrabold text-rose-700 dark:text-rose-400 mt-1">
                   ฿{formatNumber(economics.totalProjectedCost)}
@@ -164,7 +164,7 @@ export function CropEconomicsCard({
               </div>
 
               {/* Net Profit */}
-              <div className="p-4 rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/50 dark:border-blue-800/40">
+              <div className="p-4 rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/50 dark:border-blue-800/40 hover-lift transition-smooth">
                 <p className="text-[11px] font-medium text-muted-foreground">กำไรสุทธิคาดหมาย</p>
                 <p
                   className={`text-xl font-extrabold mt-1 ${
@@ -181,7 +181,7 @@ export function CropEconomicsCard({
               </div>
 
               {/* ROI & Break-even */}
-              <div className="p-4 rounded-xl border bg-muted/40 flex flex-col justify-between">
+              <div className="p-4 rounded-xl border bg-muted/40 flex flex-col justify-between hover-lift transition-smooth">
                 <div>
                   <p className="text-[11px] font-medium text-muted-foreground">ผลตอบแทนการลงทุน (ROI)</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -260,7 +260,7 @@ export function CropEconomicsCard({
                 {economics.costBreakdown.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-2.5 rounded-lg border bg-card/60 flex items-center justify-between text-xs"
+                    className="p-2.5 rounded-xl border bg-card/60 flex items-center justify-between text-xs hover-lift transition-smooth hover:border-primary/40"
                   >
                     <div className="flex items-center gap-2">
                       <div
@@ -276,7 +276,7 @@ export function CropEconomicsCard({
                 ))}
               </div>
             </div>
-          </>
+          </div>
         ) : error ? (
           <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-center text-xs text-destructive">
             {error}

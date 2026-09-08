@@ -101,7 +101,7 @@ export function AnalyticsDashboard() {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-border/60 shadow-xs">
+        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-1">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">การตรวจวิเคราะห์ดินสะสม</p>
@@ -117,7 +117,7 @@ export function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-xs">
+        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-2">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">ฐานข้อมูลพืชเศรษฐกิจ</p>
@@ -132,7 +132,7 @@ export function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-xs">
+        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-3">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">เกษตรกรและผู้ใช้งาน</p>
@@ -354,7 +354,7 @@ export function AnalyticsDashboard() {
             {data.cropPopularityRanking.map((crop, idx) => (
               <div
                 key={crop.cropId}
-                className="p-3 rounded-xl border bg-card flex items-center justify-between hover:border-primary/40 transition-colors"
+                className="p-3 rounded-xl border bg-card flex items-center justify-between hover-lift transition-smooth hover:border-primary/40"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -407,7 +407,7 @@ export function AnalyticsDashboard() {
               timeline.slice(0, 6).map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-xl border bg-muted/20 flex items-center justify-between text-xs"
+                  className="p-3 rounded-xl border bg-muted/20 flex items-center justify-between text-xs hover-lift transition-smooth hover:border-primary/40"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
