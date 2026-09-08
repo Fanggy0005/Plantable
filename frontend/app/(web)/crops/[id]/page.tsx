@@ -16,8 +16,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
-import { fetchCropById } from "@/lib/api"
-import type { Crop } from "@/types"
+import { FertilizerScheduleCard } from "@/features/soil-improvement/components/FertilizerScheduleCard"
+import { SoilAmendmentCard } from "@/features/soil-improvement/components/SoilAmendmentCard"
+import { fetchCropById, fetchSoilImprovement } from "@/lib/api"
+import type { Crop, SoilImprovementPlan } from "@/types"
 
 export default function CropDetailPage() {
   const params = useParams()
@@ -27,6 +29,7 @@ export default function CropDetailPage() {
   const [crop, setCrop] = useState<Crop | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [soilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
 
   useEffect(() => {
     async function loadCrop() {
@@ -35,6 +38,18 @@ export default function CropDetailPage() {
       try {
         const data = await fetchCropById(id)
         setCrop(data)
+        if (data.requirement) {
+          const plan = await fetchSoilImprovement(
+            {
+              nitrogen: data.requirement.nitrogenOptimal,
+              phosphorus: data.requirement.phosphorusOptimal,
+              potassium: data.requirement.potassiumOptimal,
+              ph: data.requirement.phOptimal,
+            },
+            data.id
+          )
+          setSoilPlan(plan)
+        }
       } catch (err: any) {
         setError(err.message || "Failed to load crop details")
       } finally {
@@ -220,6 +235,20 @@ export default function CropDetailPage() {
             targetMax={req.phMax}
             cropName={crop.nameTh}
           />
+
+          {/* Targeted Fertilizer & Soil Management Guide (Phase 3) */}
+          {soilPlan && (
+            <div className="pt-6 border-t space-y-6">
+              <FertilizerScheduleCard
+                schedule={soilPlan.fertilizerRecommendations}
+                cropNameTh={crop.nameTh}
+              />
+              <SoilAmendmentCard
+                phCorrection={soilPlan.phCorrection}
+                organicAlternatives={soilPlan.organicAlternatives}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

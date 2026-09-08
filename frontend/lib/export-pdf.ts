@@ -18,6 +18,7 @@ interface Result {
     ph: number
   }
   rankings: PlantResult[]
+  soilImprovement?: any
 }
 
 function escapeHtml(text: string | undefined | null): string {
@@ -76,6 +77,29 @@ function buildReportHtml(result: Result): string {
       <p style="font-size:14px;margin:0 0 4px">ฟอสฟอรัส (P): ${result.soil.phosphorus} mg/kg</p>
       <p style="font-size:14px;margin:0 0 4px">โพแทสเซียม (K): ${result.soil.potassium} mg/kg</p>
       <p style="font-size:14px;margin:0 0 16px">pH: ${result.soil.ph}</p>
+
+      ${
+        result.soilImprovement
+          ? `
+        <div style="border:1px solid #10b981;border-radius:8px;padding:14px;margin-bottom:16px;background:#f0fdf4">
+          <h2 style="font-size:16px;color:#065f46;margin:0 0 6px">แผนการปรับปรุงดินและปุ๋ย (Smart Soil Improvement)</h2>
+          <p style="font-size:13px;color:#047857;margin:0 0 8px">คะแนนสุขภาพดิน: <strong>${result.soilImprovement.soilHealthScore}/100</strong> (${escapeHtml(result.soilImprovement.overallConditionTh)})</p>
+          <p style="font-weight:600;font-size:13px;margin:6px 0 4px">ตารางการใส่ปุ๋ยเคมีแบ่งระยะ:</p>
+          <ul style="margin:0;padding-left:18px;font-size:12px;color:#333333">
+            ${(result.soilImprovement.fertilizerRecommendations ?? [])
+              .map(
+                (f: any) =>
+                  `<li><strong>${escapeHtml(f.stage)}:</strong> สูตร ${escapeHtml(f.formula)} อัตรา ${f.rateKgPerRai} กก./ไร่ (${escapeHtml(f.timing)})</li>`
+              )
+              .join("")}
+          </ul>
+          <p style="font-weight:600;font-size:13px;margin:8px 0 2px">การปรับปรุงค่ากรด-ด่าง (pH):</p>
+          <p style="font-size:12px;color:#333333;margin:0">วัสดุ: ${escapeHtml(result.soilImprovement.phCorrection?.recommendedMaterial)} | อัตรา: ${result.soilImprovement.phCorrection?.dosageKgPerRai} กก./ไร่</p>
+        </div>
+        `
+          : ""
+      }
+
       <h2 style="font-size:16px;margin:0 0 12px">อันดับพืชที่เหมาะสม</h2>
       ${plantsHtml}
     </div>

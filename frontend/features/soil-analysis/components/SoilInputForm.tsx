@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Sparkles, ArrowRight, Loader2, FlaskConical, Info } from "lucide-react"
+import { Sparkles, ArrowRight, Loader2, FlaskConical, Info, ScanLine, CheckCircle2, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { recommendPlants } from "@/lib/api"
+import { SoilReportScanner } from "./SoilReportScanner"
 
 interface SoilPreset {
   name: string
@@ -56,6 +57,8 @@ export function SoilInputForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"manual" | "ocr">("manual")
+  const [autoFillSuccess, setAutoFillSuccess] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     nitrogen: "120",
@@ -65,9 +68,29 @@ export function SoilInputForm() {
     notes: "",
   })
 
+  const handleOcrAutoFill = (data: {
+    nitrogen: number
+    phosphorus: number
+    potassium: number
+    ph: number
+    notes?: string
+  }) => {
+    setForm({
+      nitrogen: data.nitrogen.toString(),
+      phosphorus: data.phosphorus.toString(),
+      potassium: data.potassium.toString(),
+      ph: data.ph.toString(),
+      notes: data.notes || "ข้อมูลจากการสแกน OCR",
+    })
+    setActiveTab("manual")
+    setAutoFillSuccess("สแกนเอกสารและนำเข้าค่าธาตุอาหาร N-P-K-pH เรียบร้อยแล้ว! ตรวจสอบข้อมูลและเริ่มวิเคราะห์ได้ทันที")
+    if (error) setError(null)
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
     if (error) setError(null)
+    if (autoFillSuccess) setAutoFillSuccess(null)
   }
 
   const applyPreset = (preset: SoilPreset) => {
@@ -79,6 +102,7 @@ export function SoilInputForm() {
       notes: `ตัวอย่างข้อมูล: ${preset.name}`,
     })
     if (error) setError(null)
+    if (autoFillSuccess) setAutoFillSuccess(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,8 +151,51 @@ export function SoilInputForm() {
 
   return (
     <div className="space-y-6">
-      {/* Quick Presets Picker */}
-      <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-5">
+      {/* Input Mode Switcher Tabs */}
+      <div className="flex rounded-2xl bg-muted/60 p-1.5 gap-1.5 border border-border/80">
+        <button
+          type="button"
+          onClick={() => setActiveTab("manual")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === "manual"
+              ? "bg-card text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FlaskConical className="h-4 w-4 text-emerald-600" />
+          <span>1. กรอกค่าตัวเลขด้วยตนเอง (Manual)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("ocr")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeTab === "ocr"
+              ? "bg-card text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ScanLine className="h-4 w-4 text-emerald-600" />
+          <span>2. สแกนผลตรวจดิน OCR (Smart Scanner)</span>
+          <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+            Phase 3
+          </span>
+        </button>
+      </div>
+
+      {autoFillSuccess && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2.5 animate-fade-in">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{autoFillSuccess}</span>
+        </div>
+      )}
+
+      {activeTab === "ocr" ? (
+        <SoilReportScanner onAutoFill={handleOcrAutoFill} />
+      ) : (
+        <>
+          {/* Quick Presets Picker */}
+          <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
           <h3 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider">
@@ -322,6 +389,8 @@ export function SoilInputForm() {
           )}
         </Button>
       </form>
-    </div>
-  )
+      </>
+    )}
+  </div>
+)
 }

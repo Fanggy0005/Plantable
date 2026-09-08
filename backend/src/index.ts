@@ -6,6 +6,8 @@ import { analysisRoutes } from "./routes/analysis.routes"
 import { cropRoutes } from "./routes/crop.routes"
 import { userRoutes } from "./routes/user.routes"
 import { favoriteRoutes } from "./routes/favorite.routes"
+import { soilImprovementRoutes } from "./routes/soil-improvement.routes"
+import { uploadRoutes } from "./routes/upload.routes"
 
 const app = new Elysia()
   .use(cors({
@@ -19,6 +21,8 @@ const app = new Elysia()
   .use(cropRoutes)
   .use(userRoutes)
   .use(favoriteRoutes)
+  .use(soilImprovementRoutes)
+  .use(uploadRoutes)
   .get("/health", () => ({ status: "ok" }))
   .listen(3001)
 

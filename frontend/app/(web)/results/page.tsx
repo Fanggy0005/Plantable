@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button"
 import { NPKRadarChart } from "@/components/charts/NPKRadarChart"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { CropRecommendationCard } from "@/features/recommendation/components/CropRecommendationCard"
+import { SoilImprovementSection } from "@/features/soil-improvement/components/SoilImprovementSection"
 import { authClient } from "@/lib/auth-client"
-import type { AnalysisResult, RecommendedCrop } from "@/types"
+import { fetchSoilImprovement } from "@/lib/api"
+import type { AnalysisResult, RecommendedCrop, SoilImprovementPlan } from "@/types"
 
 export default function ResultsPage() {
   const router = useRouter()
@@ -27,6 +29,7 @@ export default function ResultsPage() {
   const [selectedCrop, setSelectedCrop] = useState<RecommendedCrop | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string>("All")
   const [exporting, setExporting] = useState(false)
+  const [soilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
 
   useEffect(() => {
     const data = sessionStorage.getItem("plantResult")
@@ -38,6 +41,9 @@ export default function ResultsPage() {
     try {
       const parsed: AnalysisResult = JSON.parse(data)
       setResult(parsed)
+      if (parsed.soilImprovement) {
+        setSoilPlan(parsed.soilImprovement)
+      }
       if (parsed.rankings && parsed.rankings.length > 0) {
         setSelectedCrop(parsed.rankings[0]) // Select top ranked crop by default
       }
@@ -46,6 +52,15 @@ export default function ResultsPage() {
       router.push("/analyze")
     }
   }, [router])
+
+  // Fetch or update soil improvement plan tailored to selected crop
+  useEffect(() => {
+    if (!result) return
+    const cropId = selectedCrop?.cropId || selectedCrop?.plantId
+    fetchSoilImprovement(result.soil, cropId)
+      .then((plan) => setSoilPlan(plan))
+      .catch((err) => console.error("Failed to fetch soil improvement plan", err))
+  }, [result, selectedCrop])
 
   const handleExportPDF = async () => {
     if (!result) return
@@ -233,6 +248,14 @@ export default function ResultsPage() {
           </div>
         </div>
       </div>
+
+      {/* Smart Soil Improvement & Fertilizer Plan (Phase 3) */}
+      {soilPlan && (
+        <SoilImprovementSection
+          plan={soilPlan}
+          cropNameTh={selectedCrop?.nameTh}
+        />
+      )}
 
       {/* Category Filter Pills */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t">

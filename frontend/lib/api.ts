@@ -1,4 +1,10 @@
-import type { SoilInput, AnalysisResult, Crop } from "../types"
+import type {
+  SoilInput,
+  AnalysisResult,
+  Crop,
+  SoilImprovementPlan,
+  OcrExtractedSoilData,
+} from "../types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -96,6 +102,7 @@ export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
       improvements: r.improvementSuggestions,
       cropRequirement: r.cropRequirement,
     })),
+    soilImprovement: data.soilImprovement,
   }
 }
 
@@ -177,3 +184,99 @@ export async function removeFavorite(cropId: string): Promise<boolean> {
   })
   return res.ok
 }
+
+export async function uploadSoilReport(file: File): Promise<{
+  fileId: string
+  fileUrl: string
+  fileName: string
+  fileType: string
+  fileSize: number
+}> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const res = await fetch(`${API_URL}/api/uploads`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}))
+    throw new Error(errorBody.message || "Failed to upload soil report")
+  }
+
+  const json = await res.json()
+  return json.data
+}
+
+export async function extractOcrData(params: {
+  fileId?: string
+  text?: string
+  file?: File
+  title?: string
+}): Promise<OcrExtractedSoilData> {
+  let res: Response
+
+  if (params.file) {
+    const formData = new FormData()
+    formData.append("file", params.file)
+    res = await fetch(`${API_URL}/api/ocr`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    })
+  } else {
+    res = await fetch(`${API_URL}/api/ocr`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+      credentials: "include",
+    })
+  }
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}))
+    throw new Error(errorBody.message || "Failed to extract soil data via OCR")
+  }
+
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchSoilImprovement(
+  soil: SoilInput,
+  cropId?: string
+): Promise<SoilImprovementPlan> {
+  const res = await fetch(`${API_URL}/api/soil-improvement`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...soil, cropId }),
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    throw new Error("Failed to generate soil improvement plan")
+  }
+
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchAnalysisSoilImprovement(
+  analysisId: string,
+  cropId?: string
+): Promise<SoilImprovementPlan> {
+  const query = cropId ? `?cropId=${cropId}` : ""
+  const res = await fetch(`${API_URL}/api/analyses/${analysisId}/soil-improvement${query}`, {
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch soil improvement plan for analysis")
+  }
+
+  const json = await res.json()
+  return json.data
+}
+

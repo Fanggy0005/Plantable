@@ -1,6 +1,7 @@
 import { cropRepository } from "../repositories/crop.repository"
 import { analysisRepository } from "../repositories/analysis.repository"
 import { rankCropsForSoil } from "./recommendation-engine.service"
+import { soilImprovementService } from "./soil-improvement.service"
 import type { SoilInput } from "../types"
 
 export class AnalysisService {
@@ -50,6 +51,17 @@ export class AnalysisService {
         improvementSuggestions: rec.improvementSuggestions,
         cropRequirement: rec.crop.requirement,
       })),
+      soilImprovement: soilImprovementService.generatePlan(
+        soil,
+        savedAnalysis.recommendations[0]
+          ? {
+              id: savedAnalysis.recommendations[0].crop.id,
+              name: savedAnalysis.recommendations[0].crop.name,
+              nameTh: savedAnalysis.recommendations[0].crop.nameTh,
+              requirement: savedAnalysis.recommendations[0].crop.requirement,
+            }
+          : null
+      ),
     }
   }
 
@@ -63,6 +75,16 @@ export class AnalysisService {
     return {
       soil,
       rankings: engineOutput.recommendations,
+      soilImprovement: soilImprovementService.generatePlan(
+        soil,
+        engineOutput.recommendations[0]
+          ? {
+              id: engineOutput.recommendations[0].cropId,
+              name: engineOutput.recommendations[0].cropName,
+              nameTh: engineOutput.recommendations[0].cropNameTh,
+            }
+          : null
+      ),
     }
   }
 
@@ -75,19 +97,21 @@ export class AnalysisService {
       throw new Error("Soil analysis not found")
     }
 
+    const soil: SoilInput = {
+      nitrogen: analysis.nitrogen,
+      phosphorus: analysis.phosphorus,
+      potassium: analysis.potassium,
+      ph: analysis.ph,
+      organicMatter: analysis.organicMatter,
+      moisture: analysis.moisture,
+      notes: analysis.notes,
+    }
+
     return {
       analysisId: analysis.id,
       userId: analysis.userId,
       createdAt: analysis.createdAt,
-      soil: {
-        nitrogen: analysis.nitrogen,
-        phosphorus: analysis.phosphorus,
-        potassium: analysis.potassium,
-        ph: analysis.ph,
-        organicMatter: analysis.organicMatter,
-        moisture: analysis.moisture,
-        notes: analysis.notes,
-      },
+      soil,
       recommendations: analysis.recommendations.map((rec) => ({
         id: rec.id,
         cropId: rec.cropId,
@@ -109,6 +133,17 @@ export class AnalysisService {
         improvementSuggestions: rec.improvementSuggestions,
         cropRequirement: rec.crop.requirement,
       })),
+      soilImprovement: soilImprovementService.generatePlan(
+        soil,
+        analysis.recommendations[0]
+          ? {
+              id: analysis.recommendations[0].crop.id,
+              name: analysis.recommendations[0].crop.name,
+              nameTh: analysis.recommendations[0].crop.nameTh,
+              requirement: analysis.recommendations[0].crop.requirement,
+            }
+          : null
+      ),
     }
   }
 
