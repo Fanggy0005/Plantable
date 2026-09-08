@@ -10,6 +10,7 @@ import {
   User,
   LogOut,
   Sparkles,
+  BarChart3,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
@@ -29,6 +30,7 @@ export function Navbar() {
     { href: "/analyze", label: "วิเคราะห์ดิน", icon: TestTube2 },
     { href: "/crops", label: "ฐานข้อมูลพืช", icon: BookOpen },
     { href: "/history", label: "ประวัติการตรวจ", icon: History },
+    { href: "/analytics", label: "สถิติ & แดชบอร์ด", icon: BarChart3 },
   ]
 
   return (
@@ -43,7 +45,7 @@ export function Navbar() {
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-lg tracking-tight text-foreground">Plantable</span>
               <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                Phase 2
+                Phase 4
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground hidden sm:block">

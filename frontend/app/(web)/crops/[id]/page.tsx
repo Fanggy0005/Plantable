@@ -18,6 +18,7 @@ import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
 import { FertilizerScheduleCard } from "@/features/soil-improvement/components/FertilizerScheduleCard"
 import { SoilAmendmentCard } from "@/features/soil-improvement/components/SoilAmendmentCard"
+import { CropEconomicsCard } from "@/features/economics/components/CropEconomicsCard"
 import { fetchCropById, fetchSoilImprovement } from "@/lib/api"
 import type { Crop, SoilImprovementPlan } from "@/types"
 
@@ -249,6 +250,14 @@ export default function CropDetailPage() {
               />
             </div>
           )}
+
+          {/* Crop Economics & Return on Investment (Phase 4) */}
+          <div className="pt-6 border-t">
+            <CropEconomicsCard
+              cropId={crop.id}
+              cropNameTh={crop.nameTh}
+            />
+          </div>
         </div>
       )}
     </div>

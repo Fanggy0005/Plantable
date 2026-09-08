@@ -6,6 +6,9 @@ export interface SoilInput {
   organicMatter?: number | null
   moisture?: number | null
   notes?: string | null
+  province?: string | null
+  region?: string | null
+  season?: string | null
 }
 
 export type RecommendationLevel =
@@ -153,5 +156,151 @@ export interface OcrExtractedSoilData {
   }
   rawText?: string
   extractedData?: Record<string, any>
+}
+
+// ==========================================
+// Phase 4 - Advanced Features Types
+// ==========================================
+
+export type ThaiRegion =
+  | "Northern"
+  | "Northeastern"
+  | "Central"
+  | "Eastern"
+  | "Southern"
+  | "Western"
+
+export type SeasonType = "rainy" | "winter" | "summer"
+
+export interface WeatherForecastDay {
+  date: string
+  tempMax: number
+  tempMin: number
+  precipitationSum: number
+  conditionTh: string
+}
+
+export interface AgriculturalAlert {
+  type: "drought" | "heavy_rain" | "extreme_heat" | "favorable"
+  titleTh: string
+  messageTh: string
+  severity: "low" | "medium" | "high"
+}
+
+export interface WeatherData {
+  province: string
+  region: ThaiRegion
+  regionTh: string
+  temperature: number
+  humidity: number
+  precipitation: number
+  condition: string
+  conditionTh: string
+  windSpeed: number
+  season: SeasonType
+  seasonLabelTh: string
+  forecast: WeatherForecastDay[]
+  agriculturalAlerts: AgriculturalAlert[]
+}
+
+export interface RegionalCropSuitability {
+  cropId: string
+  cropName: string
+  cropNameTh: string
+  province: string
+  region: ThaiRegion
+  regionTh: string
+  season: SeasonType
+  seasonLabelTh: string
+  waterAvailability: "high" | "moderate" | "low"
+  climateScore: number
+  regionalFit: "highly_suitable" | "moderately_suitable" | "poorly_suitable"
+  regionalFitLabelTh: string
+  regionalReasonTh: string
+  bestPlantingMonthsTh: string
+}
+
+export interface CostBreakdownItem {
+  category: "fertilizer" | "land_prep_labor" | "seeds" | "protection" | "harvest_transport"
+  categoryTh: string
+  amountThb: number
+  percentage: number
+}
+
+export interface CropEconomics {
+  cropId: string
+  cropName: string
+  cropNameTh: string
+  expectedYieldPerRai: number // kg / rai
+  expectedYieldPerHectare: number // kg / ha
+  marketPricePerKg: number // THB / kg
+  grossRevenuePerRai: number // in THB
+  fertilizerCostPerRai: number // in THB
+  otherProductionCostPerRai: number // in THB
+  totalCostPerRai: number // in THB
+  netProfitPerRai: number // in THB
+  roiPercentage: number // %
+  breakEvenPricePerKg: number // in THB
+  landAreaRai: number
+  totalProjectedRevenue: number
+  totalProjectedCost: number
+  totalProjectedProfit: number
+  costBreakdown: CostBreakdownItem[]
+}
+
+export interface AnalyticsDashboardData {
+  kpis: {
+    totalAnalyses: number
+    totalCrops: number
+    totalUsers: number
+  }
+  totalAnalyses: number
+  totalCrops: number
+  totalUsers: number
+  averageSoilMetrics: {
+    nitrogen: number
+    phosphorus: number
+    potassium: number
+    ph: number
+  }
+  soilHealthDistribution: {
+    optimalPercentage: number
+    deficientPercentage: number
+    excessPercentage: number
+  }
+  phCategoryDistribution: Array<{
+    category: string
+    labelTh: string
+    count: number
+    percentage: number
+  }>
+  cropPopularityRanking: Array<{
+    cropId: string
+    name: string
+    nameTh: string
+    category: string
+    count: number
+    percentage: number
+    averageScore: number
+  }>
+  regionalActivity: Array<{
+    region: string
+    regionTh: string
+    count: number
+  }>
+  recentActivityTimeline: Array<{
+    id: string
+    createdAt: string
+    cropNameTh: string
+    suitabilityScore: number
+    recommendationLevel: string
+  }>
+  recentAnalysesTimeline?: Array<{
+    id: string
+    createdAt: string
+    cropNameTh: string
+    suitabilityScore: number
+    recommendationLevel: string
+  }>
 }
 

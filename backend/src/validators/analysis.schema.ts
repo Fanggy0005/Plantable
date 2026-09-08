@@ -21,6 +21,9 @@ export const SoilInputSchema = t.Object({
   organicMatter: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
   moisture: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
   notes: t.Optional(t.Nullable(t.String())),
+  province: t.Optional(t.Nullable(t.String())),
+  region: t.Optional(t.Nullable(t.String())),
+  season: t.Optional(t.Nullable(t.String())),
 })
 
 export const CropQuerySchema = t.Object({

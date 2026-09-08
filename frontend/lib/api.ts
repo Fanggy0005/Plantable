@@ -4,6 +4,10 @@ import type {
   Crop,
   SoilImprovementPlan,
   OcrExtractedSoilData,
+  WeatherData,
+  RegionalCropSuitability,
+  CropEconomics,
+  AnalyticsDashboardData,
 } from "../types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -276,6 +280,113 @@ export async function fetchAnalysisSoilImprovement(
     throw new Error("Failed to fetch soil improvement plan for analysis")
   }
 
+  const json = await res.json()
+  return json.data
+}
+
+// ==========================================
+// Phase 4 API Methods: Environment, Economics, Analytics
+// ==========================================
+
+export async function fetchWeather(province?: string): Promise<WeatherData> {
+  const query = province ? `?province=${encodeURIComponent(province)}` : ""
+  const res = await fetch(`${API_URL}/api/environment/weather${query}`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch weather data")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchProvinces(): Promise<{
+  provinces: Array<{
+    key: string
+    name: string
+    nameTh: string
+    region: string
+    regionTh: string
+    lat: number
+    lon: number
+  }>
+  currentSeason: { season: string; labelTh: string }
+}> {
+  const res = await fetch(`${API_URL}/api/environment/provinces`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch provinces")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchRegionalSuitability(
+  cropId: string,
+  province?: string,
+  season?: string
+): Promise<RegionalCropSuitability> {
+  const params = new URLSearchParams({ cropId })
+  if (province) params.set("province", province)
+  if (season) params.set("season", season)
+
+  const res = await fetch(`${API_URL}/api/environment/regional-suitability?${params.toString()}`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch regional suitability")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function calculateCropEconomics(params: {
+  cropId: string
+  landAreaRai?: number
+  soil?: SoilInput
+}): Promise<CropEconomics> {
+  const res = await fetch(`${API_URL}/api/economics/calculate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) {
+    throw new Error("Failed to calculate crop economics")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchCropEconomics(
+  cropId: string,
+  landAreaRai?: number
+): Promise<CropEconomics> {
+  const query = landAreaRai ? `?landAreaRai=${landAreaRai}` : ""
+  const res = await fetch(`${API_URL}/api/crops/${cropId}/economics${query}`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch crop economics")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchAnalysisEconomics(
+  analysisId: string,
+  cropId?: string,
+  landAreaRai?: number
+): Promise<CropEconomics> {
+  const params = new URLSearchParams()
+  if (cropId) params.set("cropId", cropId)
+  if (landAreaRai) params.set("landAreaRai", String(landAreaRai))
+
+  const res = await fetch(`${API_URL}/api/analyses/${analysisId}/economics?${params.toString()}`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch analysis economics")
+  }
+  const json = await res.json()
+  return json.data
+}
+
+export async function fetchAnalyticsDashboard(): Promise<AnalyticsDashboardData> {
+  const res = await fetch(`${API_URL}/api/analytics/dashboard`)
+  if (!res.ok) {
+    throw new Error("Failed to fetch analytics dashboard data")
+  }
   const json = await res.json()
   return json.data
 }

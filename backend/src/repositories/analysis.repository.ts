@@ -17,6 +17,9 @@ export class AnalysisRepository {
         organicMatter: soil.organicMatter ?? null,
         moisture: soil.moisture ?? null,
         notes: soil.notes ?? null,
+        province: soil.province ?? null,
+        region: soil.region ?? null,
+        season: soil.season ?? null,
         recommendations: {
           create: recommendations.map((rec) => ({
             cropId: rec.cropId,

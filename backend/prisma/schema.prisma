@@ -113,6 +113,9 @@ model SoilAnalysis {
   ph            Float
   organicMatter Float?
   moisture      Float?
+  province      String?
+  region        String?
+  season        String?
   notes         String?
   createdAt     DateTime         @default(now())
 

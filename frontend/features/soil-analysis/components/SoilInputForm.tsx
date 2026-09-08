@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { recommendPlants } from "@/lib/api"
 import { SoilReportScanner } from "./SoilReportScanner"
+import { RegionalSeasonPicker } from "@/features/environment/components/RegionalSeasonPicker"
 
 interface SoilPreset {
   name: string
@@ -65,6 +66,8 @@ export function SoilInputForm() {
     phosphorus: "45",
     potassium: "50",
     ph: "6.2",
+    province: "nakhon_ratchasima",
+    season: "rainy",
     notes: "",
   })
 
@@ -75,32 +78,34 @@ export function SoilInputForm() {
     ph: number
     notes?: string
   }) => {
-    setForm({
+    setForm((prev) => ({
+      ...prev,
       nitrogen: data.nitrogen.toString(),
       phosphorus: data.phosphorus.toString(),
       potassium: data.potassium.toString(),
       ph: data.ph.toString(),
       notes: data.notes || "ข้อมูลจากการสแกน OCR",
-    })
+    }))
     setActiveTab("manual")
     setAutoFillSuccess("สแกนเอกสารและนำเข้าค่าธาตุอาหาร N-P-K-pH เรียบร้อยแล้ว! ตรวจสอบข้อมูลและเริ่มวิเคราะห์ได้ทันที")
     if (error) setError(null)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
     if (error) setError(null)
     if (autoFillSuccess) setAutoFillSuccess(null)
   }
 
   const applyPreset = (preset: SoilPreset) => {
-    setForm({
+    setForm((prev) => ({
+      ...prev,
       nitrogen: preset.nitrogen.toString(),
       phosphorus: preset.phosphorus.toString(),
       potassium: preset.potassium.toString(),
       ph: preset.ph.toString(),
       notes: `ตัวอย่างข้อมูล: ${preset.name}`,
-    })
+    }))
     if (error) setError(null)
     if (autoFillSuccess) setAutoFillSuccess(null)
   }
@@ -133,6 +138,8 @@ export function SoilInputForm() {
         phosphorus: p,
         potassium: k,
         ph: phVal,
+        province: form.province || undefined,
+        season: form.season || undefined,
         notes: form.notes || undefined,
       })
 
@@ -351,6 +358,16 @@ export function SoilInputForm() {
               ระดับ 5.5 - 7.0 เหมาะสมที่สุดสำหรับพืชส่วนใหญ่
             </p>
           </div>
+        </div>
+
+        {/* Regional & Seasonal Context (Phase 4) */}
+        <div className="space-y-2 pt-2 border-t">
+          <RegionalSeasonPicker
+            selectedProvince={form.province}
+            selectedSeason={form.season}
+            onProvinceChange={(province) => setForm((prev) => ({ ...prev, province }))}
+            onSeasonChange={(season) => setForm((prev) => ({ ...prev, season }))}
+          />
         </div>
 
         {/* Optional notes */}

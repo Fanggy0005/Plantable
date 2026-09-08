@@ -18,6 +18,8 @@ import { NPKRadarChart } from "@/components/charts/NPKRadarChart"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { CropRecommendationCard } from "@/features/recommendation/components/CropRecommendationCard"
 import { SoilImprovementSection } from "@/features/soil-improvement/components/SoilImprovementSection"
+import { WeatherWidget } from "@/features/environment/components/WeatherWidget"
+import { CropEconomicsCard } from "@/features/economics/components/CropEconomicsCard"
 import { authClient } from "@/lib/auth-client"
 import { fetchSoilImprovement } from "@/lib/api"
 import type { AnalysisResult, RecommendedCrop, SoilImprovementPlan } from "@/types"
@@ -249,11 +251,25 @@ export default function ResultsPage() {
         </div>
       </div>
 
+      {/* Real-Time Weather & Agricultural Risk Alerts (Phase 4) */}
+      <WeatherWidget
+        initialProvince={result.soil.province || "nakhon_ratchasima"}
+      />
+
       {/* Smart Soil Improvement & Fertilizer Plan (Phase 3) */}
       {soilPlan && (
         <SoilImprovementSection
           plan={soilPlan}
           cropNameTh={selectedCrop?.nameTh}
+        />
+      )}
+
+      {/* Crop Economics & Return on Investment (Phase 4) */}
+      {selectedCrop && (
+        <CropEconomicsCard
+          cropId={selectedCrop.cropId || selectedCrop.plantId}
+          cropNameTh={selectedCrop.nameTh}
+          soil={result.soil}
         />
       )}
 

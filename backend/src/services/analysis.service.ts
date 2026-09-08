@@ -29,6 +29,9 @@ export class AnalysisService {
         organicMatter: savedAnalysis.organicMatter,
         moisture: savedAnalysis.moisture,
         notes: savedAnalysis.notes,
+        province: savedAnalysis.province,
+        region: savedAnalysis.region,
+        season: savedAnalysis.season,
       },
       recommendations: savedAnalysis.recommendations.map((rec) => ({
         id: rec.id,
@@ -105,6 +108,9 @@ export class AnalysisService {
       organicMatter: analysis.organicMatter,
       moisture: analysis.moisture,
       notes: analysis.notes,
+      province: analysis.province,
+      region: analysis.region,
+      season: analysis.season,
     }
 
     return {
