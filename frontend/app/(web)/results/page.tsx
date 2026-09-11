@@ -170,43 +170,43 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Soil Parameter Overview Chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
+      {/* Soil Parameter Overview Bento Chips */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bento-card p-4.5 hover-lift">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ไนโตรเจน (N)
           </span>
-          <p className="text-2xl font-extrabold text-foreground mt-0.5">
+          <p className="text-2xl font-extrabold text-foreground mt-1">
             {result.soil.nitrogen}{" "}
-            <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
+            <span className="text-xs font-semibold text-emerald-800">mg/kg</span>
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
+        <div className="bento-card p-4.5 hover-lift">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ฟอสฟอรัส (P)
           </span>
-          <p className="text-2xl font-extrabold text-foreground mt-0.5">
+          <p className="text-2xl font-extrabold text-foreground mt-1">
             {result.soil.phosphorus}{" "}
-            <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
+            <span className="text-xs font-semibold text-emerald-800">mg/kg</span>
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
+        <div className="bento-card p-4.5 hover-lift">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             โพแทสเซียม (K)
           </span>
-          <p className="text-2xl font-extrabold text-foreground mt-0.5">
+          <p className="text-2xl font-extrabold text-foreground mt-1">
             {result.soil.potassium}{" "}
-            <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
+            <span className="text-xs font-semibold text-emerald-800">mg/kg</span>
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs hover-lift transition-smooth">
+        <div className="bento-card p-4.5 hover-lift">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             ความเป็นกรด-ด่าง (pH)
           </span>
-          <p className="text-2xl font-extrabold text-foreground mt-0.5">
+          <p className="text-2xl font-extrabold text-foreground mt-1">
             {result.soil.ph}
           </p>
         </div>
@@ -231,10 +231,10 @@ export default function ResultsPage() {
             cropName={selectedCrop?.nameTh}
           />
 
-          {/* Quick Summary Card */}
-          <div className="bg-card rounded-2xl p-5 border border-border/60 shadow-xs space-y-3">
+          {/* Quick Summary Bento Card */}
+          <div className="bento-card p-5 space-y-3">
             <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
               สรุปภาพรวมปฐพีวิทยา
             </h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -242,8 +242,8 @@ export default function ResultsPage() {
               <strong className="text-foreground">{topCrop?.nameTh}</strong> (ความเหมาะสม {topCrop?.level}) โดยได้รับคะแนน {topCrop?.score}%
             </p>
             {topCrop && topCrop.improvements.length > 0 && (
-              <div className="text-xs text-amber-800 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/60 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 bg-amber-50/90 p-3 rounded-xl border border-amber-200/80 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                 <span>คำแนะนำปรับดินเร่งด่วน: {topCrop.improvements[0]}</span>
               </div>
             )}
@@ -274,9 +274,9 @@ export default function ResultsPage() {
       )}
 
       {/* Category Filter Pills */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-emerald-950/10">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-4 w-4 text-emerald-800" />
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             หมวดหมู่พืช:
           </span>
@@ -289,10 +289,10 @@ export default function ResultsPage() {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat as string)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   isCatActive
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                    ? "bg-primary text-white shadow-xs font-bold"
+                    : "bg-card border border-emerald-950/10 hover:border-emerald-700/40 text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {cat === "All" ? "ทั้งหมด (12 ชนิด)" : cat}

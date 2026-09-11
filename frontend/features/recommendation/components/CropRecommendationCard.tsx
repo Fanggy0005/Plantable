@@ -41,8 +41,8 @@ export function CropRecommendationCard({
     <div
       className={`rounded-2xl bg-card border transition-all duration-300 overflow-hidden hover-lift ${
         isSelected
-          ? "border-emerald-600 ring-2 ring-emerald-600/20 shadow-md"
-          : "border-border/70 hover:border-emerald-300 shadow-xs"
+          ? "border-emerald-800 ring-2 ring-emerald-800/20 shadow-md"
+          : "border-emerald-950/10 hover:border-emerald-700/50 shadow-xs hover:shadow-md"
       }`}
     >
       {/* Header section */}
@@ -93,13 +93,13 @@ export function CropRecommendationCard({
           {onSelectForComparison && (
             <button
               onClick={() => onSelectForComparison(crop)}
-              className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors ${
+              className={`flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all ${
                 isSelected
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "bg-muted/80 hover:bg-emerald-50 text-muted-foreground hover:text-emerald-800"
+                  ? "bg-primary text-white shadow-xs"
+                  : "bg-muted/80 hover:bg-emerald-50 text-muted-foreground hover:text-emerald-900 border border-emerald-950/5"
               }`}
             >
-              <Radio className="h-3 w-3" />
+              <Radio className="h-3 w-3 text-emerald-500" />
               {isSelected ? "กำลังเปรียบเทียบ" : "ดูในเรดาร์กราฟ"}
             </button>
           )}

@@ -159,17 +159,17 @@ export function SoilInputForm() {
   return (
     <div className="space-y-6">
       {/* Input Mode Switcher Tabs */}
-      <div className="flex rounded-2xl bg-muted/60 p-1.5 gap-1.5 border border-border/80">
+      <div className="flex rounded-2xl bg-muted/60 p-1.5 gap-1.5 border border-emerald-950/10">
         <button
           type="button"
           onClick={() => setActiveTab("manual")}
           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "manual"
-              ? "bg-card text-foreground shadow-xs"
+              ? "bg-card text-foreground shadow-sm border border-emerald-950/5"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <FlaskConical className="h-4 w-4 text-emerald-600" />
+          <FlaskConical className="h-4 w-4 text-emerald-700" />
           <span>1. กรอกค่าตัวเลขด้วยตนเอง (Manual)</span>
         </button>
 
@@ -178,21 +178,21 @@ export function SoilInputForm() {
           onClick={() => setActiveTab("ocr")}
           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === "ocr"
-              ? "bg-card text-foreground shadow-xs"
+              ? "bg-card text-foreground shadow-sm border border-emerald-950/5"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <ScanLine className="h-4 w-4 text-emerald-600" />
+          <ScanLine className="h-4 w-4 text-emerald-700" />
           <span>2. สแกนผลตรวจดิน OCR (Smart Scanner)</span>
-          <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-            Phase 3
+          <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300/60">
+            Smart OCR
           </span>
         </button>
       </div>
 
       {autoFillSuccess && (
-        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2.5 animate-fade-in">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2.5 animate-fade-in shadow-xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
           <span>{autoFillSuccess}</span>
         </div>
       )}
@@ -201,39 +201,39 @@ export function SoilInputForm() {
         <SoilReportScanner onAutoFill={handleOcrAutoFill} />
       ) : (
         <>
-          {/* Quick Presets Picker */}
-          <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
-          <h3 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider">
-            ทดลองเลือกข้อมูลดินจำลอง (Click เพื่อใส่ค่าอัตโนมัติ)
-          </h3>
-        </div>
+          {/* Quick Presets Bento Grid */}
+          <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/40 p-5">
+            <div className="flex items-center gap-2 mb-3.5">
+              <Sparkles className="h-4 w-4 text-emerald-700" />
+              <h3 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider">
+                ทดลองเลือกข้อมูลดินจำลอง (Click เพื่อใส่ค่าอัตโนมัติ)
+              </h3>
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {PRESETS.map((preset, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              className="text-left p-3 rounded-xl bg-card border border-border/80 hover:border-emerald-600 hover-lift transition-smooth group active:scale-98"
-            >
-              <p className="text-xs font-bold text-foreground group-hover:text-emerald-700 transition-colors">
-                {preset.name}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {preset.desc}
-              </p>
-            </button>
-          ))}
-        </div>
-      </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {PRESETS.map((preset, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => applyPreset(preset)}
+                  className="text-left p-3.5 rounded-xl bg-card border border-emerald-950/10 hover:border-emerald-700 hover:shadow-md transition-smooth group active:scale-98"
+                >
+                  <p className="text-xs font-bold text-foreground group-hover:text-emerald-800 transition-colors">
+                    {preset.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {preset.desc}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Main Form Card */}
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border bg-card p-6 sm:p-8 shadow-xs space-y-6"
-      >
+          {/* Main Form Bento Card */}
+          <form
+            onSubmit={handleSubmit}
+            className="bento-card p-6 sm:p-8 space-y-6"
+          >
         <div className="border-b pb-4">
           <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-emerald-600" />
@@ -391,11 +391,11 @@ export function SoilInputForm() {
           type="submit"
           size="lg"
           disabled={loading}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-xl shadow-sm text-base transition-all hover:scale-[1.01]"
+          className="w-full bg-primary hover:bg-[#092918] text-primary-foreground font-extrabold py-6 rounded-2xl shadow-[0_4px_16px_rgba(14,61,36,0.2)] hover:shadow-[0_8px_24px_rgba(14,61,36,0.28)] text-base transition-all hover:scale-[1.01] active:scale-99"
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-300" />
               กำลังประมวลผลตามเกณฑ์วิทยาศาสตร์...
             </span>
           ) : (

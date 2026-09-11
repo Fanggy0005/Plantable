@@ -34,31 +34,31 @@
 }
 
 :root {
-  /* Modern Clean Agri-Tech Light Theme */
-  --background: oklch(0.99 0.003 150);       /* Crisp clean white canvas */
-  --foreground: oklch(0.18 0.03 155);        /* Deep forest charcoal for high contrast */
-  --card: oklch(1 0 0);                     /* Pure white card */
-  --card-foreground: oklch(0.18 0.03 155);
+  /* High-End Clean Agri-Tech White & Deep Forest Theme */
+  --background: oklch(0.995 0.002 150);      /* Pure crisp white canvas */
+  --foreground: oklch(0.16 0.025 155);       /* High-contrast deep forest charcoal #0f1c15 */
+  --card: oklch(1 0 0);                      /* Pure white card */
+  --card-foreground: oklch(0.16 0.025 155);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.03 155);
+  --popover-foreground: oklch(0.16 0.025 155);
 
-  /* Deep Emerald & Forest Primary */
-  --primary: oklch(0.38 0.12 152);          /* #165b37 deep vibrant agricultural green */
+  /* Deep Forest Primary Brand */
+  --primary: oklch(0.28 0.09 152);           /* #0e3d24 Deep authoritative forest green */
   --primary-foreground: oklch(0.99 0 0);     /* Crisp white text */
 
   /* Fresh Mint & Soft Sage Accents */
-  --secondary: oklch(0.95 0.03 150);        /* Mint/sage wash */
-  --secondary-foreground: oklch(0.24 0.08 152);
-  --muted: oklch(0.96 0.012 148);
-  --muted-foreground: oklch(0.46 0.03 155);
-  --accent: oklch(0.93 0.04 150);
-  --accent-foreground: oklch(0.22 0.08 152);
+  --secondary: oklch(0.96 0.02 150);         /* #eef7f2 Soft mint wash */
+  --secondary-foreground: oklch(0.22 0.07 152);
+  --muted: oklch(0.965 0.008 150);          /* Ultra clean off-white */
+  --muted-foreground: oklch(0.44 0.025 155); /* Muted slate-forest */
+  --accent: oklch(0.94 0.03 150);            /* Crisp interactive sage */
+  --accent-foreground: oklch(0.20 0.07 152);
 
   --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.91 0.015 150);          /* Clean soft structural border */
-  --input: oklch(0.91 0.015 150);
-  --ring: oklch(0.45 0.10 152);
-  --radius: 0.875rem;                       /* 14px rounded-2xl baseline */
+  --border: oklch(0.92 0.01 150);            /* Refined hairline border */
+  --input: oklch(0.92 0.01 150);
+  --ring: oklch(0.35 0.10 152);              /* Deep forest focus ring */
+  --radius: 1rem;                            /* Modern 16px rounded-2xl baseline */
 }
 
 .dark {
@@ -194,9 +194,50 @@
 }
 .hover-lift:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 30px -8px rgba(16, 80, 50, 0.12);
+  box-shadow: 0 16px 32px -8px rgba(10, 41, 25, 0.10);
 }
 
 .transition-smooth {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Professional Bento-Grid System */
+.bento-card {
+  background-color: var(--card);
+  border: 1px solid rgba(14, 61, 36, 0.09);
+  border-radius: 1.125rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 4px 16px -2px rgba(14, 61, 36, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-card:hover {
+  border-color: rgba(14, 61, 36, 0.22);
+  box-shadow: 0 12px 28px -6px rgba(14, 61, 36, 0.09), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
+}
+
+/* Inverted Dark Forest Header & Hero Utilities */
+.bg-dark-forest {
+  background-color: #071e12;
+}
+
+.bg-forest-gradient {
+  background: radial-gradient(120% 120% at 50% 0%, #124027 0%, #0a2718 45%, #06190e 100%);
+}
+
+.bg-forest-nav {
+  background-color: rgba(6, 25, 14, 0.94);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Subtle Agronomy Dot/Grid Pattern */
+.bg-subtle-grid {
+  background-image: radial-gradient(rgba(14, 61, 36, 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-subtle-grid-dark {
+  background-image: radial-gradient(rgba(52, 211, 153, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
