@@ -1,6 +1,18 @@
 "use client"
 
-import { MapPin, Calendar, Compass } from "lucide-react"
+import { CalendarRange, CloudRain, MapPin, Snowflake, Sun, type LucideIcon } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useT } from "@/lib/i18n"
+import { pickerMessages } from "../picker-messages"
 
 interface RegionalSeasonPickerProps {
   selectedProvince: string
@@ -9,25 +21,32 @@ interface RegionalSeasonPickerProps {
   onSeasonChange: (season: string) => void
 }
 
-export const THAI_PROVINCES_SELECT = [
-  { key: "nakhon_ratchasima", labelTh: "นครราชสีมา (อีสานตอนล่าง)", regionTh: "ภาคตะวันออกเฉียงเหนือ" },
-  { key: "khon_kaen", labelTh: "ขอนแก่น (อีสานตอนบน)", regionTh: "ภาคตะวันออกเฉียงเหนือ" },
-  { key: "chiang_mai", labelTh: "เชียงใหม่ (ภาคเหนือ)", regionTh: "ภาคเหนือ" },
-  { key: "nan", labelTh: "น่าน (ภาคเหนือ)", regionTh: "ภาคเหนือ" },
-  { key: "suphan_buri", labelTh: "สุพรรณบุรี (ภาคกลาง)", regionTh: "ภาคกลาง" },
-  { key: "ayutthaya", labelTh: "พระนครศรีอยุธยา (ภาคกลาง)", regionTh: "ภาคกลาง" },
-  { key: "rayong", labelTh: "ระยอง (ภาคตะวันออก)", regionTh: "ภาคตะวันออก" },
-  { key: "chanthaburi", labelTh: "จันทบุรี (ภาคตะวันออก)", regionTh: "ภาคตะวันออก" },
-  { key: "surat_thani", labelTh: "สุราษฎร์ธานี (ภาคใต้)", regionTh: "ภาคใต้" },
-  { key: "songkhla", labelTh: "สงขลา (ภาคใต้ตอนล่าง)", regionTh: "ภาคใต้" },
-  { key: "kanchanaburi", labelTh: "กาญจนบุรี (ภาคตะวันตก)", regionTh: "ภาคตะวันตก" },
+type RegionKey = "north" | "northeast" | "central" | "east" | "south" | "west"
+
+export const THAI_PROVINCES_SELECT: { key: string; region: RegionKey }[] = [
+  { key: "chiang_mai", region: "north" },
+  { key: "nan", region: "north" },
+  { key: "nakhon_ratchasima", region: "northeast" },
+  { key: "khon_kaen", region: "northeast" },
+  { key: "suphan_buri", region: "central" },
+  { key: "ayutthaya", region: "central" },
+  { key: "rayong", region: "east" },
+  { key: "chanthaburi", region: "east" },
+  { key: "surat_thani", region: "south" },
+  { key: "songkhla", region: "south" },
+  { key: "kanchanaburi", region: "west" },
 ]
 
-export const SEASONS_SELECT = [
-  { key: "rainy", labelTh: "ฤดูฝน (พ.ค. - ต.ค.) - น้ำสมบูรณ์ นาข้าว พืชไร่", description: "เหมาะแก่การปลูกพืชที่ใช้น้ำมาก" },
-  { key: "winter", labelTh: "ฤดูหนาว (พ.ย. - ก.พ.) - อากาศเย็น ผักเมืองหนาว", description: "ผักสลัด มะเขือเทศ ข้าวโพดหลังนา" },
-  { key: "summer", labelTh: "ฤดูร้อน (มี.ค. - เม.ย.) - แดดจัด พืชทนแล้ง", description: "มันสำปะหลัง อ้อย สับปะรด" },
+const REGION_ORDER: RegionKey[] = ["north", "northeast", "central", "east", "south", "west"]
+
+export const SEASONS_SELECT: { key: string; icon: LucideIcon }[] = [
+  { key: "rainy", icon: CloudRain },
+  { key: "winter", icon: Snowflake },
+  { key: "summer", icon: Sun },
 ]
+
+const triggerClass =
+  "h-11 w-full rounded-xl border-input bg-card px-3.5 text-sm font-medium shadow-xs hover:border-primary/30"
 
 export function RegionalSeasonPicker({
   selectedProvince,
@@ -35,53 +54,80 @@ export function RegionalSeasonPicker({
   onProvinceChange,
   onSeasonChange,
 }: RegionalSeasonPickerProps) {
+  const t = useT(pickerMessages)
+
+  const provinceItems = Object.fromEntries(
+    THAI_PROVINCES_SELECT.map((p) => [p.key, t.provinces[p.key] ?? p.key])
+  )
+  const seasonItems = Object.fromEntries(
+    SEASONS_SELECT.map((s) => [s.key, t.seasons[s.key]?.label ?? s.key])
+  )
+  const regionOf = THAI_PROVINCES_SELECT.find((p) => p.key === selectedProvince)?.region
+  const season = t.seasons[selectedSeason]
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border bg-muted/20">
-      {/* Province Selector */}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          จังหวัด / ภูมิภาคเพาะปลูก
-        </label>
-        <div className="relative">
-          <select
-            value={selectedProvince}
-            onChange={(e) => onProvinceChange(e.target.value)}
-            className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs font-medium"
-          >
-            {THAI_PROVINCES_SELECT.map((prov) => (
-              <option key={prov.key} value={prov.key}>
-                {prov.labelTh}
-              </option>
+        <Label className="text-xs font-semibold text-foreground">
+          <MapPin className="size-3.5 text-primary" />
+          {t.province}
+        </Label>
+        <Select
+          items={provinceItems}
+          value={selectedProvince}
+          onValueChange={(v) => v && onProvinceChange(v as string)}
+        >
+          <SelectTrigger className={triggerClass} aria-label={t.province}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl">
+            {REGION_ORDER.map((region) => (
+              <SelectGroup key={region}>
+                <SelectLabel>{t.regions[region]}</SelectLabel>
+                {THAI_PROVINCES_SELECT.filter((p) => p.region === region).map((p) => (
+                  <SelectItem key={p.key} value={p.key} className="rounded-xl">
+                    {provinceItems[p.key]}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
-          </select>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          ใช้คำนวณความเข้ากันได้ของสภาพภูมิอากาศและแหล่งน้ำ
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {regionOf ? `${t.regions[regionOf]} · ` : ""}
+          {t.provinceHint}
         </p>
       </div>
 
-      {/* Season Selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-          ฤดูกาลเพาะปลูกที่วางแผน
-        </label>
-        <div className="relative">
-          <select
-            value={selectedSeason}
-            onChange={(e) => onSeasonChange(e.target.value)}
-            className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs font-medium"
-          >
-            {SEASONS_SELECT.map((season) => (
-              <option key={season.key} value={season.key}>
-                {season.labelTh}
-              </option>
+        <Label className="text-xs font-semibold text-foreground">
+          <CalendarRange className="size-3.5 text-info" />
+          {t.season}
+        </Label>
+        <Select
+          items={seasonItems}
+          value={selectedSeason}
+          onValueChange={(v) => v && onSeasonChange(v as string)}
+        >
+          <SelectTrigger className={triggerClass} aria-label={t.season}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl">
+            {SEASONS_SELECT.map((s) => (
+              <SelectItem key={s.key} value={s.key} className="rounded-xl py-2.5">
+                <s.icon className="text-muted-foreground" />
+                <span className="flex flex-col items-start">
+                  <span>{t.seasons[s.key]?.label}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {t.seasons[s.key]?.months}
+                  </span>
+                </span>
+              </SelectItem>
             ))}
-          </select>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          ปรับเกณฑ์การประเมินตามปริมาณฝนและอุณหภูมิตามฤดู
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {season ? `${season.months} · ${season.desc}` : t.seasonHint}
         </p>
       </div>
     </div>

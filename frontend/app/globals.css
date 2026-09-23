@@ -2,13 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Light-only app: `dark:` utilities only apply under an explicit .dark ancestor, which we never set */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sarabun), var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
-  --font-mono: var(--font-geist-mono, ui-monospace, monospace);
+  --font-sans: var(--font-sarabun), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -26,218 +27,189 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger-soft: var(--danger-soft);
+
+  /* Deep forest surfaces (header, hero, footer, CTA) */
+  --color-forest: var(--forest);
+  --color-forest-elevated: var(--forest-elevated);
+  --color-forest-border: var(--forest-border);
+  --color-forest-foreground: var(--forest-foreground);
+  --color-forest-muted: var(--forest-muted);
+  --color-forest-accent: var(--forest-accent);
+
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.3);
   --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-3xl: calc(var(--radius) * 2);
+
+  --shadow-card: 0 1px 2px oklch(0.2 0.05 155 / 0.04), 0 4px 16px -4px oklch(0.2 0.05 155 / 0.06);
+  --shadow-card-hover: 0 2px 4px oklch(0.2 0.05 155 / 0.04), 0 16px 32px -8px oklch(0.2 0.05 155 / 0.12);
+
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-float: floatGentle 5s ease-in-out infinite;
 }
 
 :root {
-  /* High-End Clean Agri-Tech White & Deep Forest Theme */
-  --background: oklch(0.995 0.002 150);      /* Pure crisp white canvas */
-  --foreground: oklch(0.16 0.025 155);       /* High-contrast deep forest charcoal #0f1c15 */
-  --card: oklch(1 0 0);                      /* Pure white card */
-  --card-foreground: oklch(0.16 0.025 155);
+  /* Canvas — crisp white with a whisper of green */
+  --background: oklch(0.99 0.004 150);
+  --foreground: oklch(0.18 0.03 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.03 155);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.025 155);
+  --popover-foreground: oklch(0.18 0.03 155);
 
-  /* Deep Forest Primary Brand */
-  --primary: oklch(0.28 0.09 152);           /* #0e3d24 Deep authoritative forest green */
-  --primary-foreground: oklch(0.99 0 0);     /* Crisp white text */
+  /* Deep forest brand */
+  --primary: oklch(0.34 0.09 153);
+  --primary-foreground: oklch(0.99 0 0);
 
-  /* Fresh Mint & Soft Sage Accents */
-  --secondary: oklch(0.96 0.02 150);         /* #eef7f2 Soft mint wash */
-  --secondary-foreground: oklch(0.22 0.07 152);
-  --muted: oklch(0.965 0.008 150);          /* Ultra clean off-white */
-  --muted-foreground: oklch(0.44 0.025 155); /* Muted slate-forest */
-  --accent: oklch(0.94 0.03 150);            /* Crisp interactive sage */
-  --accent-foreground: oklch(0.20 0.07 152);
+  --secondary: oklch(0.965 0.018 150);
+  --secondary-foreground: oklch(0.26 0.07 153);
+  --muted: oklch(0.97 0.006 150);
+  --muted-foreground: oklch(0.48 0.02 155);
+  --accent: oklch(0.95 0.028 150);
+  --accent-foreground: oklch(0.24 0.07 153);
 
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.92 0.01 150);            /* Refined hairline border */
-  --input: oklch(0.92 0.01 150);
-  --ring: oklch(0.35 0.10 152);              /* Deep forest focus ring */
-  --radius: 1rem;                            /* Modern 16px rounded-2xl baseline */
-}
+  --destructive: oklch(0.58 0.21 27);
+  --border: oklch(0.925 0.01 150);
+  --input: oklch(0.91 0.012 150);
+  --ring: oklch(0.45 0.11 153);
+  --radius: 0.875rem;
 
-.dark {
-  /* Rich Forest Night Theme */
-  --background: oklch(0.13 0.03 155);       /* Deep forest night */
-  --foreground: oklch(0.96 0.01 145);
-  --card: oklch(0.17 0.03 155);             /* Slightly elevated forest charcoal */
-  --card-foreground: oklch(0.96 0.01 145);
-  --popover: oklch(0.17 0.03 155);
-  --popover-foreground: oklch(0.96 0.01 145);
+  /* Status */
+  --success: oklch(0.55 0.14 152);
+  --success-soft: oklch(0.96 0.035 152);
+  --warning: oklch(0.66 0.15 70);
+  --warning-soft: oklch(0.97 0.04 85);
+  --info: oklch(0.55 0.13 240);
+  --info-soft: oklch(0.96 0.025 240);
+  --danger-soft: oklch(0.965 0.025 25);
 
-  --primary: oklch(0.65 0.14 152);          /* Vibrant emerald green */
-  --primary-foreground: oklch(0.12 0.03 155);
+  /* Forest surfaces */
+  --forest: oklch(0.2 0.045 155);
+  --forest-elevated: oklch(0.25 0.05 155);
+  --forest-border: oklch(0.32 0.05 155);
+  --forest-foreground: oklch(0.97 0.01 150);
+  --forest-muted: oklch(0.78 0.04 152);
+  --forest-accent: oklch(0.84 0.13 158);
 
-  --secondary: oklch(0.22 0.04 155);
-  --secondary-foreground: oklch(0.92 0.02 145);
-  --muted: oklch(0.22 0.03 155);
-  --muted-foreground: oklch(0.70 0.02 150);
-  --accent: oklch(0.25 0.05 152);
-  --accent-foreground: oklch(0.96 0.01 145);
-
-  --destructive: oklch(0.65 0.18 25);
-  --border: oklch(0.25 0.02 155);
-  --input: oklch(0.25 0.02 155);
-  --ring: oklch(0.65 0.14 152);
+  /* Chart palette: forest, emerald, amber, sky, clay */
+  --chart-1: oklch(0.42 0.1 153);
+  --chart-2: oklch(0.68 0.14 158);
+  --chart-3: oklch(0.75 0.14 75);
+  --chart-4: oklch(0.62 0.12 235);
+  --chart-5: oklch(0.6 0.12 40);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-emerald-100 selection:text-emerald-900;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-background text-foreground antialiased selection:bg-primary/15 selection:text-primary;
+  }
+  /* Thai script needs a touch more line height than Latin */
+  :lang(th) body {
+    line-height: 1.65;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
 
-/* Custom Smooth Keyframe Animations */
-@keyframes fadeInUp {
+/* Clean SaaS surface card */
+@utility surface {
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+@utility surface-interactive {
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  &:hover {
+    border-color: color-mix(in oklch, var(--primary) 25%, transparent);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+}
+
+@utility bg-forest-gradient {
+  background:
+    radial-gradient(80% 60% at 50% 0%, oklch(0.32 0.08 155 / 0.9) 0%, transparent 70%),
+    var(--forest);
+}
+
+@utility bg-dot-grid {
+  background-image: radial-gradient(oklch(0.34 0.09 153 / 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@utility bg-dot-grid-dark {
+  background-image: radial-gradient(oklch(0.84 0.13 158 / 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@utility text-gradient-forest {
+  background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(100deg, var(--forest-accent), oklch(0.92 0.08 170), var(--forest-accent));
+  background-size: 200% auto;
+  animation: shimmer 6s linear infinite;
+}
+
+@keyframes shimmer {
   from {
-    opacity: 0;
-    transform: translateY(14px);
+    background-position: 200% 0;
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(22, 91, 55, 0.06);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(22, 91, 55, 0.16);
+    background-position: -200% 0;
   }
 }
 
 @keyframes floatGentle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-4px);
+    transform: translateY(-6px);
   }
 }
 
-/* Smooth Animation Utilities */
-.animate-fade-in-up {
-  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.35s ease-out forwards;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slide-right {
-  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.pulse-glow {
-  animation: pulseGlow 3s infinite ease-in-out;
-}
-
-.animate-float {
-  animation: floatGentle 4s ease-in-out infinite;
-}
-
-/* Stagger Delays */
-.stagger-1 { animation-delay: 60ms; }
-.stagger-2 { animation-delay: 120ms; }
-.stagger-3 { animation-delay: 180ms; }
-.stagger-4 { animation-delay: 240ms; }
-
-/* Smooth Interactive Card Lift */
-.hover-lift {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
-}
-.hover-lift:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 32px -8px rgba(10, 41, 25, 0.10);
-}
-
-.transition-smooth {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Professional Bento-Grid System */
-.bento-card {
-  background-color: var(--card);
-  border: 1px solid rgba(14, 61, 36, 0.09);
-  border-radius: 1.125rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 4px 16px -2px rgba(14, 61, 36, 0.03);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.bento-card:hover {
-  border-color: rgba(14, 61, 36, 0.22);
-  box-shadow: 0 12px 28px -6px rgba(14, 61, 36, 0.09), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
-  transform: translateY(-2px);
-}
-
-/* Inverted Dark Forest Header & Hero Utilities */
-.bg-dark-forest {
-  background-color: #071e12;
-}
-
-.bg-forest-gradient {
-  background: radial-gradient(120% 120% at 50% 0%, #124027 0%, #0a2718 45%, #06190e 100%);
-}
-
-.bg-forest-nav {
-  background-color: rgba(6, 25, 14, 0.94);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Subtle Agronomy Dot/Grid Pattern */
-.bg-subtle-grid {
-  background-image: radial-gradient(rgba(14, 61, 36, 0.07) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-.bg-subtle-grid-dark {
-  background-image: radial-gradient(rgba(52, 211, 153, 0.12) 1px, transparent 1px);
-  background-size: 24px 24px;
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

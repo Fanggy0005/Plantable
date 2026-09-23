@@ -1,127 +1,287 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { motion } from "motion/react"
+import { toast } from "sonner"
 import {
+  BarChart3,
+  BookOpen,
+  ChevronDown,
+  History,
+  LogIn,
+  LogOut,
+  Menu,
   Sprout,
   TestTube2,
-  BookOpen,
-  History,
   User,
-  LogOut,
-  Sparkles,
-  BarChart3,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
+import { layoutMessages } from "@/components/layout/messages"
 import { authClient } from "@/lib/auth-client"
+import { useT } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function Brand({ onClick }: { onClick?: () => void }) {
+  return (
+    <Link href="/" onClick={onClick} className="group flex items-center gap-2.5">
+      <span className="flex size-9 items-center justify-center rounded-xl bg-forest-accent text-forest shadow-[0_0_18px_-2px_var(--forest-accent)] transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-6">
+        <Sprout className="size-5" />
+      </span>
+      <span className="text-lg font-bold tracking-tight text-forest-foreground">Plantable</span>
+    </Link>
+  )
+}
+
+function UserInitial({ name, className }: { name?: string | null; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex size-7 items-center justify-center rounded-full bg-forest-accent text-xs font-bold text-forest",
+        className
+      )}
+    >
+      {name?.[0]?.toUpperCase() || "U"}
+    </span>
+  )
+}
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useT(layoutMessages)
   const { data: session, isPending } = authClient.useSession()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const user = session?.user
+
+  const navItems = [
+    { href: "/analyze", label: t.nav.analyze, icon: TestTube2 },
+    { href: "/crops", label: t.nav.crops, icon: BookOpen },
+    { href: "/history", label: t.nav.history, icon: History },
+    { href: "/analytics", label: t.nav.analytics, icon: BarChart3 },
+  ]
 
   const handleSignOut = async () => {
     await authClient.signOut()
+    setMobileOpen(false)
+    toast.success(t.account.loggedOut)
     router.push("/")
     router.refresh()
   }
 
-  const navItems = [
-    { href: "/analyze", label: "วิเคราะห์ดิน", icon: TestTube2 },
-    { href: "/crops", label: "ฐานข้อมูลพืช", icon: BookOpen },
-    { href: "/history", label: "ประวัติการตรวจ", icon: History },
-    { href: "/analytics", label: "สถิติ & แดชบอร์ด", icon: BarChart3 },
-  ]
-
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-emerald-950/80 bg-[#071e12]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[#071e12]/90 transition-colors text-white">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.25)] group-hover:scale-105 group-hover:border-emerald-400 transition-all duration-200">
-            <Sprout className="h-5 w-5 text-emerald-300 group-hover:rotate-6 transition-transform" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg tracking-tight text-white">Plantable</span>
-              <span className="rounded-full bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                Phase 4
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-200/70 hidden sm:block">
-              ระบบแนะนำพืชตามค่าธาตุอาหารในดิน
-            </p>
-          </div>
-        </Link>
+    <header className="sticky top-0 z-50 w-full border-b border-forest-border/70 bg-forest/90 text-forest-foreground backdrop-blur-xl supports-backdrop-filter:bg-forest/80">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Brand />
 
-        {/* Navigation Links */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+        {/* Desktop navigation */}
+        <nav className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
+            const active = isActivePath(pathname, item.href)
             return (
-              <Link key={item.href} href={item.href}>
-                <span
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-emerald-800/60 text-white font-semibold border border-emerald-500/30 shadow-xs backdrop-blur-xs"
-                      : "text-emerald-100/75 hover:text-white hover:bg-emerald-900/40"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${isActive ? "text-emerald-300" : "text-emerald-200/70"}`} />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </span>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                  active ? "text-forest-foreground" : "text-forest-muted hover:text-forest-foreground"
+                )}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active"
+                    className="absolute inset-0 rounded-full bg-forest-elevated ring-1 ring-forest-border"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <item.icon className={cn("relative size-4", active && "text-forest-accent")} />
+                <span className="relative">{item.label}</span>
               </Link>
             )
           })}
+        </nav>
 
-          {/* User Section */}
-          <div className="ml-2 pl-2 border-l border-emerald-900/80 flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+
+          {/* Desktop account */}
+          <div className="hidden items-center gap-2 md:flex">
             {isPending ? (
-              <div className="h-8 w-8 rounded-full bg-emerald-950/80 animate-pulse border border-emerald-800/50" />
-            ) : session?.user ? (
-              <div className="flex items-center gap-2">
-                <Link href="/profile">
-                  <span
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
-                      pathname === "/profile"
-                        ? "bg-emerald-800/80 text-white border-emerald-400"
-                        : "bg-emerald-950/60 border-emerald-800/70 hover:border-emerald-500/60 text-emerald-100 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[#071e12] font-black text-[10px]">
-                      {session.user.name?.[0]?.toUpperCase() || "U"}
-                    </div>
-                    <span className="hidden md:inline max-w-[100px] truncate text-emerald-100">
-                      {session.user.name || session.user.email}
-                    </span>
-                  </span>
-                </Link>
-
-                <button
-                  onClick={handleSignOut}
-                  title="ออกจากระบบ"
-                  className="p-1.5 rounded-lg text-emerald-200/70 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
+              <div className="size-9 animate-pulse rounded-full bg-forest-elevated" />
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-2 rounded-full border border-forest-border bg-forest-elevated/60 py-1 pr-2.5 pl-1 text-sm font-medium text-forest-foreground transition-colors outline-none hover:border-forest-accent/50 focus-visible:ring-2 focus-visible:ring-forest-accent/50"
                 >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
+                  <UserInitial name={user.name} />
+                  <span className="max-w-28 truncate">{user.name || user.email}</span>
+                  <ChevronDown className="size-3.5 text-forest-muted" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={8} className="w-60">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
+                      <p className="truncate text-xs font-normal text-muted-foreground">{user.email}</p>
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem render={<Link href="/profile" />}>
+                    <User />
+                    {t.account.profile}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link href="/history" />}>
+                    <History />
+                    {t.account.history}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+                    <LogOut />
+                    {t.account.logout}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <div className="flex items-center gap-1.5">
-                <Link href="/login">
-                  <Button variant="ghost" size="sm" className="text-xs font-semibold text-emerald-100 hover:text-white hover:bg-emerald-900/60">
-                    เข้าสู่ระบบ
-                  </Button>
-                </Link>
-                <Link href="/register" className="hidden sm:block">
-                  <Button size="sm" className="bg-white hover:bg-emerald-50 text-[#071e12] text-xs font-bold shadow-xs hover:shadow-[0_0_15px_rgba(255,255,255,0.25)] rounded-xl border-none transition-all">
-                    สมัครสมาชิก
-                  </Button>
-                </Link>
-              </div>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  render={<Link href="/login" />}
+                  nativeButton={false}
+                  className="text-forest-muted hover:bg-forest-elevated hover:text-forest-foreground"
+                >
+                  {t.account.login}
+                </Button>
+                <Button
+                  size="sm"
+                  render={<Link href="/register" />}
+                  nativeButton={false}
+                  className="bg-forest-accent font-semibold text-forest hover:bg-forest-accent/90"
+                >
+                  {t.account.register}
+                </Button>
+              </>
             )}
           </div>
-        </nav>
+
+          {/* Mobile menu */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t.openMenu}
+                  className="text-forest-foreground hover:bg-forest-elevated hover:text-forest-foreground md:hidden"
+                />
+              }
+            >
+              <Menu className="size-5" />
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[86%] max-w-sm gap-0 border-l-0 p-0">
+              <SheetHeader className="bg-forest-gradient p-5 pr-14 text-forest-foreground">
+                <SheetTitle className="sr-only">{t.menu}</SheetTitle>
+                <Brand onClick={() => setMobileOpen(false)} />
+                {user && (
+                  <div className="mt-4 flex items-center gap-3 rounded-2xl bg-forest-elevated/70 p-3 ring-1 ring-forest-border">
+                    <UserInitial name={user.name} className="size-10 text-sm" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{user.name}</p>
+                      <p className="truncate text-xs text-forest-muted">{user.email}</p>
+                    </div>
+                  </div>
+                )}
+              </SheetHeader>
+
+              <nav className="flex flex-col gap-1 p-3">
+                {[...navItems, ...(user ? [{ href: "/profile", label: t.account.profile, icon: User }] : [])].map(
+                  (item, i) => {
+                    const active = isActivePath(pathname, item.href)
+                    return (
+                      <motion.div
+                        key={item.href}
+                        initial={{ opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 + i * 0.04 }}
+                      >
+                        <SheetClose
+                          render={<Link href={item.href} />}
+                          nativeButton={false}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl px-3 py-3 text-base font-medium transition-colors",
+                            active
+                              ? "bg-secondary text-primary"
+                              : "text-foreground hover:bg-muted"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex size-9 items-center justify-center rounded-lg",
+                              active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <item.icon className="size-4.5" />
+                          </span>
+                          {item.label}
+                        </SheetClose>
+                      </motion.div>
+                    )
+                  }
+                )}
+              </nav>
+
+              <SheetFooter className="border-t border-border p-4">
+                {user ? (
+                  <Button variant="destructive" size="lg" className="w-full" onClick={handleSignOut}>
+                    <LogOut />
+                    {t.account.logout}
+                  </Button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <SheetClose
+                      render={<Button variant="outline" size="lg" render={<Link href="/login" />} nativeButton={false} />}
+                      nativeButton={false}
+                    >
+                      <LogIn />
+                      {t.account.login}
+                    </SheetClose>
+                    <SheetClose
+                      render={<Button size="lg" render={<Link href="/register" />} nativeButton={false} />}
+                      nativeButton={false}
+                    >
+                      <UserPlus />
+                      {t.account.register}
+                    </SheetClose>
+                  </div>
+                )}
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   )

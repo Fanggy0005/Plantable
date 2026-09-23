@@ -2,43 +2,97 @@
 
 import { useState, useEffect } from "react"
 import {
-  CloudSun,
-  CloudRain,
-  Sun,
-  Wind,
-  Droplets,
-  Thermometer,
   AlertTriangle,
   CheckCircle2,
+  CloudRain,
+  CloudSun,
+  Droplets,
   MapPin,
-  Calendar,
   RefreshCw,
+  Sun,
+  Thermometer,
+  Wind,
+  type LucideIcon,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { CountUp, Stagger, StaggerItem } from "@/components/motion"
+import { ErrorState } from "@/components/shared/States"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { cn } from "@/lib/utils"
 import type { WeatherData } from "@/types"
 import { fetchWeather } from "@/lib/api"
+import { weatherMessages } from "../weather-messages"
 
 interface WeatherWidgetProps {
   initialProvince?: string
   onLocationChange?: (province: string, region: string) => void
 }
 
-const PROVINCE_OPTIONS = [
-  { key: "nakhon_ratchasima", label: "นครราชสีมา (อีสานตอนล่าง)", region: "Northeastern" },
-  { key: "khon_kaen", label: "ขอนแก่น (อีสานตอนบน)", region: "Northeastern" },
-  { key: "chiang_mai", label: "เชียงใหม่ (ภาคเหนือ)", region: "Northern" },
-  { key: "nan", label: "น่าน (ภาคเหนือ)", region: "Northern" },
-  { key: "suphan_buri", label: "สุพรรณบุรี (ภาคกลาง)", region: "Central" },
-  { key: "ayutthaya", label: "พระนครศรีอยุธยา (ภาคกลาง)", region: "Central" },
-  { key: "rayong", label: "ระยอง (ภาคตะวันออก)", region: "Eastern" },
-  { key: "chanthaburi", label: "จันทบุรี (ภาคตะวันออก)", region: "Eastern" },
-  { key: "surat_thani", label: "สุราษฎร์ธานี (ภาคใต้)", region: "Southern" },
-  { key: "kanchanaburi", label: "กาญจนบุรี (ภาคตะวันตก)", region: "Western" },
+const PROVINCE_KEYS = [
+  "nakhon_ratchasima",
+  "khon_kaen",
+  "chiang_mai",
+  "nan",
+  "suphan_buri",
+  "ayutthaya",
+  "rayong",
+  "chanthaburi",
+  "surat_thani",
+  "kanchanaburi",
 ]
 
+const SEASON_STYLE: Record<string, { icon: LucideIcon; variant: "info" | "secondary" | "warning" }> = {
+  rainy: { icon: CloudRain, variant: "info" },
+  winter: { icon: Wind, variant: "secondary" },
+  summer: { icon: Sun, variant: "warning" },
+}
+
+const ALERT_STYLE = {
+  high: { box: "bg-danger-soft border-destructive/20", text: "text-destructive", badge: "destructive" },
+  medium: { box: "bg-warning-soft border-warning/25", text: "text-warning", badge: "warning" },
+  low: { box: "bg-success-soft border-success/20", text: "text-success", badge: "success" },
+} as const
+
+function MetricTile({
+  icon: Icon,
+  label,
+  value,
+  decimals = 0,
+  unit,
+  tone,
+}: {
+  icon: LucideIcon
+  label: string
+  value: number
+  decimals?: number
+  unit: string
+  tone: string
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+      <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", tone)}>
+        <Icon className="size-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] text-muted-foreground">{label}</p>
+        <p className="text-lg leading-tight font-bold text-foreground">
+          <CountUp value={value} decimals={decimals} />
+          <span className="ml-0.5 text-xs font-medium text-muted-foreground">{unit}</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocationChange }: WeatherWidgetProps) {
+  const t = useT(weatherMessages)
+  const common = useT(commonMessages)
+  const fmt = useFormat()
   const [selectedProvince, setSelectedProvince] = useState(initialProvince)
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,8 +107,8 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
       if (onLocationChange) {
         onLocationChange(data.province, data.region)
       }
-    } catch (err: any) {
-      setError(err.message || "ไม่สามารถโหลดข้อมูลสภาพอากาศได้")
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t.loadError)
     } finally {
       setLoading(false)
     }
@@ -62,247 +116,186 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
 
   useEffect(() => {
     loadWeather(selectedProvince)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvince])
 
-  const handleProvinceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value
-    setSelectedProvince(val)
-  }
+  const provinceKeys = PROVINCE_KEYS.includes(selectedProvince)
+    ? PROVINCE_KEYS
+    : [selectedProvince, ...PROVINCE_KEYS]
+  const provinceItems = provinceKeys.map((key) => ({ value: key, label: t.provinces[key] ?? key }))
 
-  const getSeasonBadge = (season: string) => {
-    switch (season) {
-      case "rainy":
-        return {
-          label: "ฤดูฝน (ความชื้นสูง)",
-          color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200",
-          icon: CloudRain,
-        }
-      case "winter":
-        return {
-          label: "ฤดูหนาว (อากาศเย็น)",
-          color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300 border-cyan-200",
-          icon: Wind,
-        }
-      default:
-        return {
-          label: "ฤดูร้อน (แดดจัด)",
-          color: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200",
-          icon: Sun,
-        }
-    }
-  }
-
-  const seasonInfo = weather ? getSeasonBadge(weather.season) : getSeasonBadge("rainy")
-  const SeasonIcon = seasonInfo.icon
+  const season = weather ? (SEASON_STYLE[weather.season] ?? SEASON_STYLE.summer) : null
+  const SeasonIcon = season?.icon
 
   return (
-    <Card className="border-border/60 shadow-sm overflow-hidden">
-      <CardHeader className="bg-muted/30 border-b pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="surface overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-info-soft text-info">
+            <CloudSun className="size-5" />
+          </span>
           <div>
-            <div className="flex items-center gap-2">
-              <CloudSun className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle className="text-lg font-bold">สภาพภูมิอากาศและแจ้งเตือนการเกษตร</CardTitle>
-            </div>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              ข้อมูลสภาพอากาศเรียลไทม์จากดาวเทียม & การประเมินความเสี่ยงต่อแปลงเพาะปลูก
-            </CardDescription>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={selectedProvince}
-                onChange={handleProvinceSelect}
-                className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 font-medium pr-7 focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-              >
-                {PROVINCE_OPTIONS.map((p) => (
-                  <option key={p.key} value={p.key}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              <MapPin className="h-3.5 w-3.5 text-muted-foreground absolute right-2 top-2.5 pointer-events-none" />
-            </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => loadWeather(selectedProvince)}
-              title="รีเฟรชสภาพอากาศ"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            </Button>
+            <h3 className="text-base font-bold text-foreground">{t.title}</h3>
+            <p className="text-xs text-muted-foreground">{t.description}</p>
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="p-4 sm:p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Select
+            items={provinceItems}
+            value={selectedProvince}
+            onValueChange={(v) => v && setSelectedProvince(v as string)}
+          >
+            <SelectTrigger aria-label={t.province} className="h-10 min-w-0 flex-1 border-border bg-card sm:w-52 sm:flex-none">
+              <MapPin className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {provinceItems.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-10"
+                  aria-label={t.refresh}
+                  onClick={() => loadWeather(selectedProvince)}
+                />
+              }
+            >
+              <RefreshCw className={cn(loading && "animate-spin")} />
+            </TooltipTrigger>
+            <TooltipContent>{t.refresh}</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5">
         {loading && !weather ? (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground animate-fade-in">
-            <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-            กำลังดึงข้อมูลสภาพอากาศ...
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+            <Skeleton className="h-12 rounded-xl" />
+            <div className="flex gap-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 flex-1 rounded-xl" />
+              ))}
+            </div>
           </div>
+        ) : error && !weather ? (
+          <ErrorState title={t.loadError} description={error} onRetry={() => loadWeather(selectedProvince)} />
         ) : weather ? (
-          <div className="space-y-6 animate-fade-in">
-            {/* Top Stat Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
-                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  <Thermometer className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">อุณหภูมิปัจจุบัน</p>
-                  <p className="text-xl font-bold">{weather.temperature}°C</p>
-                </div>
-              </div>
+          <div className={cn("space-y-5 transition-opacity", loading && "opacity-60")}>
+            <Stagger immediate className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StaggerItem>
+                <MetricTile icon={Thermometer} label={t.temperature} value={weather.temperature} decimals={1} unit="°C" tone="bg-danger-soft text-chart-5" />
+              </StaggerItem>
+              <StaggerItem>
+                <MetricTile icon={Droplets} label={t.humidity} value={weather.humidity} unit="%" tone="bg-info-soft text-info" />
+              </StaggerItem>
+              <StaggerItem>
+                <MetricTile icon={CloudRain} label={t.rainfall} value={weather.precipitation} decimals={1} unit={t.mm} tone="bg-secondary text-primary" />
+              </StaggerItem>
+              <StaggerItem>
+                <MetricTile icon={Wind} label={t.wind} value={weather.windSpeed} decimals={1} unit={t.kmh} tone="bg-muted text-muted-foreground" />
+              </StaggerItem>
+            </Stagger>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
-                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-                  <Droplets className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">ความชื้นสัมพัทธ์</p>
-                  <p className="text-xl font-bold">{weather.humidity}%</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border hover-lift transition-smooth">
-                <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-                  <CloudRain className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">ปริมาณน้ำฝน</p>
-                  <p className="text-xl font-bold">{weather.precipitation} <span className="text-xs font-normal">มม.</span></p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border">
-                <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-                  <Wind className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">ความเร็วลม</p>
-                  <p className="text-xl font-bold">{weather.windSpeed} <span className="text-xs font-normal">กม./ชม.</span></p>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Region & Season Strip */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-semibold text-sm">
-                  {weather.province} ({weather.regionTh})
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5">
+              <div className="flex min-w-0 items-center gap-2 text-sm">
+                <MapPin className="size-4 shrink-0 text-primary" />
+                <span className="font-semibold text-foreground">
+                  {t.provinces[selectedProvince] ?? weather.province}
                 </span>
-                <span className="text-xs text-muted-foreground">· {weather.conditionTh}</span>
+                {fmt.locale === "th" && <span className="truncate text-muted-foreground">· {weather.regionTh}</span>}
+                {fmt.locale === "th" && weather.conditionTh && (
+                  <span className="hidden truncate text-muted-foreground sm:inline">· {weather.conditionTh}</span>
+                )}
+                {fmt.locale === "en" && weather.condition && (
+                  <span className="truncate text-muted-foreground">· {weather.condition}</span>
+                )}
               </div>
-
-              <Badge variant="outline" className={`flex items-center gap-1.5 font-medium text-xs px-3 py-1 ${seasonInfo.color}`}>
-                <SeasonIcon className="h-3.5 w-3.5" />
-                {seasonInfo.label}
-              </Badge>
+              {season && SeasonIcon && (
+                <Badge variant={season.variant} className="py-1">
+                  <SeasonIcon />
+                  {common.seasons[weather.season] ?? weather.seasonLabelTh}
+                </Badge>
+              )}
             </div>
 
-            {/* Agricultural Risk Alerts */}
-            {weather.agriculturalAlerts && weather.agriculturalAlerts.length > 0 && (
+            {weather.agriculturalAlerts?.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  การแจ้งเตือนสภาวะแปลงเกษตร
-                </p>
-                <div className="grid gap-2">
+                <p className="text-xs font-semibold text-muted-foreground">{t.alerts}</p>
+                <Stagger immediate className="grid gap-2 md:grid-cols-2">
                   {weather.agriculturalAlerts.map((alert, idx) => {
-                    const isWarning = alert.severity === "high" || alert.severity === "medium"
+                    const style = ALERT_STYLE[alert.severity] ?? ALERT_STYLE.low
+                    const Icon = alert.severity === "low" ? CheckCircle2 : AlertTriangle
                     return (
-                      <div
-                        key={idx}
-                        className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
-                          alert.severity === "high"
-                            ? "bg-red-50/70 border-red-200 dark:bg-red-950/30 dark:border-red-900/50"
-                            : alert.severity === "medium"
-                            ? "bg-amber-50/70 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50"
-                            : "bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/50"
-                        }`}
-                      >
-                        {isWarning ? (
-                          <AlertTriangle
-                            className={`h-4 w-4 mt-0.5 shrink-0 ${
-                              alert.severity === "high" ? "text-red-600" : "text-amber-600"
-                            }`}
-                          />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
-                        )}
-                        <div>
-                          <p
-                            className={`text-xs font-bold ${
-                              alert.severity === "high"
-                                ? "text-red-900 dark:text-red-300"
-                                : alert.severity === "medium"
-                                ? "text-amber-900 dark:text-amber-300"
-                                : "text-emerald-900 dark:text-emerald-300"
-                            }`}
-                          >
-                            {alert.titleTh}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                            {alert.messageTh}
-                          </p>
+                      <StaggerItem key={idx} className={cn("flex items-start gap-3 rounded-xl border p-3.5", style.box)}>
+                        <Icon className={cn("mt-0.5 size-4 shrink-0", style.text)} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={cn("text-sm font-semibold", style.text)}>{alert.titleTh}</p>
+                            <Badge variant={style.badge} className="shrink-0">
+                              {t.severity[alert.severity] ?? alert.severity}
+                            </Badge>
+                          </div>
+                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{alert.messageTh}</p>
                         </div>
-                      </div>
+                      </StaggerItem>
                     )
                   })}
-                </div>
+                </Stagger>
               </div>
             )}
 
-            {/* 5-Day Forecast Grid */}
-            {weather.forecast && weather.forecast.length > 0 && (
+            {weather.forecast?.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    พยากรณ์อากาศล่วงหน้า 5 วัน
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <p className="text-xs font-semibold text-muted-foreground">{t.forecast}</p>
+                <Stagger
+                  immediate
+                  stagger={0.05}
+                  className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:px-0"
+                >
                   {weather.forecast.map((day, idx) => (
-                    <div
+                    <StaggerItem
                       key={idx}
-                      className="p-2.5 rounded-xl border bg-card text-center flex flex-col justify-between space-y-1 shadow-2xs hover-lift transition-smooth hover:border-primary/40"
+                      className="flex min-w-24 shrink-0 snap-start flex-col items-center gap-1 rounded-xl border border-border bg-card p-3 text-center transition-colors hover:border-primary/30 sm:min-w-0"
                     >
                       <p className="text-[11px] font-medium text-muted-foreground">
-                        {new Date(day.date).toLocaleDateString("th-TH", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {fmt.date(day.date, { weekday: "short", day: "numeric", month: "short" })}
                       </p>
-                      <div className="py-1">
-                        <span className="text-sm font-bold text-foreground">{day.tempMax}°</span>
-                        <span className="text-xs text-muted-foreground ml-1">/ {day.tempMin}°</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground line-clamp-1" title={day.conditionTh}>
-                        {day.conditionTh}
+                      <p className="text-sm">
+                        <span className="font-bold text-foreground">{day.tempMax}°</span>
+                        <span className="ml-1 text-xs text-muted-foreground">{day.tempMin}°</span>
                       </p>
-                      {day.precipitationSum > 0 && (
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                          ฝน {day.precipitationSum} มม.
-                        </span>
+                      {fmt.locale === "th" && (
+                        <p className="line-clamp-1 text-[10px] text-muted-foreground" title={day.conditionTh}>
+                          {day.conditionTh}
+                        </p>
                       )}
-                    </div>
+                      {day.precipitationSum > 0 && (
+                        <span className="text-[10px] font-medium text-info">{t.rain(day.precipitationSum)}</span>
+                      )}
+                    </StaggerItem>
                   ))}
-                </div>
+                </Stagger>
               </div>
             )}
           </div>
-        ) : error ? (
-          <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-center text-xs text-destructive">
-            {error}
-          </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

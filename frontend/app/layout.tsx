@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Sarabun, Geist_Mono, Inter } from "next/font/google";
+import { Sarabun, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { I18nProvider } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { MotionProvider } from "@/components/motion";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 
 const sarabun = Sarabun({
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   subsets: ["thai", "latin"],
   variable: "--font-sarabun",
   display: "swap",
 });
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -22,17 +25,29 @@ export const metadata: Metadata = {
   description: "เปลี่ยนผลวิเคราะห์ธาตุอาหารในดิน (NPK & pH) ให้กลายเป็นคำแนะนำการเพาะปลูกที่แม่นยำทางวิทยาศาสตร์",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="th"
-      className={cn("h-full", "antialiased", sarabun.variable, geistMono.variable, inter.variable, "font-sans")}
+      lang={locale}
+      data-scroll-behavior="smooth"
+      className={cn("h-full antialiased", sarabun.variable, geistMono.variable)}
     >
-      <body className="min-h-full flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">{children}</body>
+      <body className="flex min-h-full flex-col font-sans">
+        <I18nProvider initialLocale={locale}>
+          <MotionProvider>
+            <TooltipProvider>
+              {children}
+              <Toaster position="top-center" richColors={false} />
+            </TooltipProvider>
+          </MotionProvider>
+        </I18nProvider>
+      </body>
     </html>
   );
 }

@@ -1,27 +1,57 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { motion } from "motion/react"
+import { Bar, BarChart, CartesianGrid, Cell, Label, LabelList, Pie, PieChart, XAxis, YAxis } from "recharts"
 import {
-  BarChart3,
-  TrendingUp,
   Activity,
-  Users,
+  Award,
+  BarChart3,
+  Clock,
+  FlaskConical,
+  MapPin,
+  RefreshCw,
+  ShieldCheck,
   Sprout,
   TestTubes,
-  ShieldCheck,
-  AlertTriangle,
-  MapPin,
-  Clock,
-  Award,
-  RefreshCw,
+  Users,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { AnalyticsDashboardData } from "@/types"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { ErrorState } from "@/components/shared/States"
+import { StatCard } from "@/components/shared/StatCard"
+import { CountUp, EASE_OUT, FadeIn, Stagger, StaggerItem } from "@/components/motion"
 import { fetchAnalyticsDashboard } from "@/lib/api"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { scoreTone, TONE_BADGE } from "@/lib/score"
+import { cn } from "@/lib/utils"
+import { analyticsMessages } from "../messages"
+import type { AnalyticsDashboardData } from "@/types"
+
+const PH_COLORS: Record<string, string> = {
+  strongly_acidic: "var(--destructive)",
+  moderately_acidic: "var(--chart-3)",
+  optimal: "var(--chart-2)",
+  alkaline: "var(--chart-4)",
+}
+
+/** General target ranges (mg/kg) used for the averages comparison */
+const TARGETS = {
+  nitrogen: [100, 160],
+  phosphorus: [30, 60],
+  potassium: [60, 120],
+} as const
 
 export function AnalyticsDashboard() {
+  const t = useT(analyticsMessages)
   const [data, setData] = useState<AnalyticsDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +63,7 @@ export function AnalyticsDashboard() {
       const res = await fetchAnalyticsDashboard()
       setData(res)
     } catch (err: any) {
-      setError(err.message || "ไม่สามารถดึงข้อมูลแดชบอร์ดสถิติได้")
+      setError(err.message || t.loadError)
     } finally {
       setLoading(false)
     }
@@ -41,408 +71,447 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin text-primary mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">กำลังประมวลผลข้อมูลสถิติระดับประเทศ...</p>
-      </div>
-    )
-  }
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={t.eyebrow}
+        icon={BarChart3}
+        title={t.title}
+        description={t.description}
+        actions={
+          <Button variant="outline" className="h-10" onClick={loadData} disabled={loading}>
+            <RefreshCw className={cn(loading && "animate-spin")} />
+            {t.refresh}
+          </Button>
+        }
+      />
 
-  if (error || !data) {
-    return (
-      <Card className="border-destructive/20 bg-destructive/5 text-center p-8">
-        <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
-        <p className="text-sm font-bold text-destructive">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
-        <p className="text-xs text-muted-foreground mt-1 mb-4">{error}</p>
-        <Button variant="outline" size="sm" onClick={loadData}>
-          ลองใหม่อีกครั้ง
-        </Button>
-      </Card>
-    )
-  }
+      {loading && !data ? (
+        <DashboardSkeleton />
+      ) : error || !data ? (
+        <ErrorState title={t.loadError} description={error ?? undefined} onRetry={loadData} />
+      ) : (
+        <DashboardContent data={data} />
+      )}
+    </div>
+  )
+}
+
+function DashboardContent({ data }: { data: AnalyticsDashboardData }) {
+  const t = useT(analyticsMessages)
+  const f = useFormat()
 
   const kpis = data.kpis || {
     totalAnalyses: data.totalAnalyses,
     totalCrops: data.totalCrops,
     totalUsers: data.totalUsers,
   }
-
   const timeline = data.recentActivityTimeline || data.recentAnalysesTimeline || []
 
   return (
-    <div className="space-y-6">
-      {/* Header with Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5">
+      <Stagger immediate className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StaggerItem>
+          <StatCard label={t.kpi.analyses} value={kpis.totalAnalyses} icon={TestTubes} hint={t.kpi.analysesHint} format={(n) => f.number(n)} />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard label={t.kpi.crops} value={kpis.totalCrops} icon={Sprout} hint={t.kpi.cropsHint} />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard label={t.kpi.users} value={kpis.totalUsers} icon={Users} hint={t.kpi.usersHint} format={(n) => f.number(n)} />
+        </StaggerItem>
+      </Stagger>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SoilHealthCard data={data} />
+        <PhDistributionCard data={data} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <AveragesCard data={data} className="lg:col-span-3" />
+        <RegionsCard data={data} className="lg:col-span-2" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <PopularityCard data={data} className="lg:col-span-3" />
+        <TimelineCard timeline={timeline} className="lg:col-span-2" />
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Building blocks ---------- */
+
+function Panel({
+  icon: Icon,
+  title,
+  description,
+  className,
+  children,
+}: {
+  icon: typeof Activity
+  title: string
+  description?: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <FadeIn className={cn("surface flex flex-col p-5 sm:p-6", className)}>
+      <div className="mb-5 flex items-start gap-3">
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+          <Icon className="size-4.5" />
+        </span>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
-            <BarChart3 className="h-7 w-7 text-primary" />
-            แดชบอร์ดข้อมูลสุขภาพดิน & สถิติการเกษตร
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            สรุปแนวโน้มความอุดมสมบูรณ์ของดิน ปริมาณธาตุอาหาร และพืชเศรษฐกิจยอดนิยมทั่วไทย
-          </p>
+          <h2 className="text-base font-bold text-foreground">{title}</h2>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
+      </div>
+      <div className="flex-1">{children}</div>
+    </FadeIn>
+  )
+}
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          disabled={loading}
-          className="self-start sm:self-auto gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          อัปเดตข้อมูล
-        </Button>
+function SoilHealthCard({ data }: { data: AnalyticsDashboardData }) {
+  const t = useT(analyticsMessages).health
+  const d = data.soilHealthDistribution
+  const segments = [
+    { key: "optimal", label: t.optimal, value: d.optimalPercentage, color: "var(--chart-2)" },
+    { key: "deficient", label: t.deficient, value: d.deficientPercentage, color: "var(--chart-3)" },
+    { key: "excess", label: t.excess, value: d.excessPercentage, color: "var(--chart-5)" },
+  ]
+
+  return (
+    <Panel icon={ShieldCheck} title={t.title} description={t.description}>
+      <div className="flex h-5 w-full overflow-hidden rounded-full bg-muted">
+        {segments.map((s, i) => (
+          <motion.div
+            key={s.key}
+            className="h-full first:rounded-l-full last:rounded-r-full"
+            style={{ backgroundColor: s.color }}
+            initial={{ width: 0 }}
+            whileInView={{ width: `${s.value}%` }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.15 + i * 0.12 }}
+            title={`${s.label}: ${s.value}%`}
+          />
+        ))}
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+        {segments.map((s) => (
+          <div key={s.key} className="rounded-xl bg-muted/60 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+              <span className="truncate text-xs font-medium text-muted-foreground">{s.label}</span>
+            </div>
+            <p className="mt-1 text-xl font-bold text-foreground sm:text-2xl">
+              <CountUp value={s.value} decimals={s.value % 1 ? 1 : 0} />%
+            </p>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+}
+
+function PhDistributionCard({ data }: { data: AnalyticsDashboardData }) {
+  const t = useT(analyticsMessages).ph
+  const f = useFormat()
+  const rows = data.phCategoryDistribution.map((p) => ({
+    ...p,
+    label: t.categories[p.category] ?? p.labelTh,
+    fill: PH_COLORS[p.category] ?? "var(--chart-1)",
+  }))
+  const total = rows.reduce((sum, r) => sum + r.count, 0)
+  const config = Object.fromEntries(
+    rows.map((r) => [r.category, { label: r.label, color: r.fill }])
+  ) satisfies ChartConfig
+
+  return (
+    <Panel icon={FlaskConical} title={t.title} description={t.description}>
+      <div className="flex flex-col items-center gap-5 sm:flex-row">
+        <ChartContainer config={config} className="aspect-square h-52 w-52 shrink-0" initialDimension={{ width: 208, height: 208 }}>
+          <PieChart>
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="category" />} />
+            <Pie data={rows} dataKey="count" nameKey="category" innerRadius={62} outerRadius={96} paddingAngle={2} strokeWidth={0} cornerRadius={4}>
+              {rows.map((r) => (
+                <Cell key={r.category} fill={r.fill} />
+              ))}
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox || !("cx" in viewBox)) return null
+                  return (
+                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                      <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 6} className="fill-foreground text-2xl font-bold">
+                        {f.number(total)}
+                      </tspan>
+                      <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-muted-foreground text-xs">
+                        {t.total}
+                      </tspan>
+                    </text>
+                  )
+                }}
+              />
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+        <ul className="w-full flex-1 space-y-2">
+          {rows.map((r) => (
+            <li key={r.category} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/60">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: r.fill }} />
+                <span className="truncate text-muted-foreground">{r.label}</span>
+              </span>
+              <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                {r.percentage}%
+                <span className="ml-1 text-xs font-normal text-muted-foreground">({f.number(r.count)})</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Panel>
+  )
+}
+
+function AveragesCard({ data, className }: { data: AnalyticsDashboardData; className?: string }) {
+  const t = useT(analyticsMessages).averages
+  const common = useT(commonMessages)
+  const avg = data.averageSoilMetrics
+
+  const rows = (["nitrogen", "phosphorus", "potassium"] as const).map((k) => ({
+    nutrient: common.nutrients[k],
+    average: avg[k],
+    target: (TARGETS[k][0] + TARGETS[k][1]) / 2,
+    range: `${TARGETS[k][0]}–${TARGETS[k][1]}`,
+  }))
+
+  const config = {
+    average: { label: t.average, color: "var(--chart-1)" },
+    target: { label: t.target, color: "var(--chart-2)" },
+  } satisfies ChartConfig
+
+  const phPct = Math.min(100, (avg.ph / 14) * 100)
+
+  return (
+    <Panel icon={Activity} title={t.title} description={t.description} className={className}>
+      <ChartContainer config={config} className="aspect-auto h-60 w-full">
+        <BarChart data={rows} margin={{ top: 20, right: 4, left: -16, bottom: 0 }} barGap={4}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="nutrient" tickLine={false} axisLine={false} tickMargin={8} />
+          <YAxis tickLine={false} axisLine={false} width={48} />
+          <ChartTooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltipContent />} />
+          <Bar dataKey="average" fill="var(--color-average)" radius={[6, 6, 0, 0]} maxBarSize={44}>
+            <LabelList dataKey="average" position="top" className="fill-foreground text-xs font-semibold" />
+          </Bar>
+          <Bar dataKey="target" fill="var(--color-target)" fillOpacity={0.45} radius={[6, 6, 0, 0]} maxBarSize={44} />
+        </BarChart>
+      </ChartContainer>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-chart-1" />
+          {t.average}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-chart-2/45" />
+          {t.target}
+        </span>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-1">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">การตรวจวิเคราะห์ดินสะสม</p>
-              <p className="text-3xl font-black text-foreground mt-1">{kpis.totalAnalyses}</p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                ครอบคลุม 6 ภูมิภาคการเกษตร
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-              <TestTubes className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-2">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">ฐานข้อมูลพืชเศรษฐกิจ</p>
-              <p className="text-3xl font-black text-foreground mt-1">{kpis.totalCrops}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                พืชไร่ พืชสวน ไม้ผล และผักเมืองหนาว
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-              <Sprout className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 shadow-xs hover-lift transition-smooth animate-fade-in-up stagger-3">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">เกษตรกรและผู้ใช้งาน</p>
-              <p className="text-3xl font-black text-foreground mt-1">{kpis.totalUsers}</p>
-              <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium mt-1 flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                สมาชิกชุมชนเกษตรอัจฉริยะ
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-              <Users className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mt-5 rounded-xl bg-muted/60 p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-medium text-muted-foreground">{t.phAverage}</span>
+          <span className="text-2xl font-bold text-foreground">
+            <CountUp value={avg.ph} decimals={1} />
+          </span>
+        </div>
+        <div className="relative mt-3 h-2.5 rounded-full bg-[linear-gradient(90deg,var(--destructive),var(--chart-3),var(--chart-2),var(--chart-4))] opacity-90">
+          <div
+            className="absolute inset-y-0 rounded-full ring-2 ring-card"
+            style={{ left: `${(6 / 14) * 100}%`, width: `${(1 / 14) * 100}%` }}
+          />
+          <motion.div
+            className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground shadow"
+            initial={{ left: "0%" }}
+            whileInView={{ left: `${phPct}%` }}
+            viewport={{ once: true }}
+            transition={{ duration: 1, ease: EASE_OUT, delay: 0.2 }}
+          />
+        </div>
+        <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+          <span>0</span>
+          <span>{t.phTarget}</span>
+          <span>14</span>
+        </div>
       </div>
+    </Panel>
+  )
+}
 
-      {/* Soil Health Distribution & Nutrient Averages */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Soil Health Status */}
-        <Card className="border-border/60 shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              ภาพรวมความสมบูรณ์ของดินที่นำมาตรวจ
-            </CardTitle>
-            <CardDescription className="text-xs">
-              สัดส่วนดินที่มีธาตุอาหารสมดุล เทียบกับดินที่ขาดแคลนหรือตกค้าง
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Visual Health Bar */}
-            <div className="h-4 w-full rounded-full bg-muted overflow-hidden flex shadow-inner">
-              <div
-                className="bg-emerald-500 h-full transition-all duration-500"
-                style={{ width: `${data.soilHealthDistribution.optimalPercentage}%` }}
-                title={`สมดุล: ${data.soilHealthDistribution.optimalPercentage}%`}
+function RegionsCard({ data, className }: { data: AnalyticsDashboardData; className?: string }) {
+  const t = useT(analyticsMessages).regions
+  const f = useFormat()
+  const rows = [...data.regionalActivity]
+    .sort((a, b) => b.count - a.count)
+    .map((r) => ({ ...r, label: f.pick(r.regionTh, r.region) }))
+  const config = { count: { label: t.count, color: "var(--chart-1)" } } satisfies ChartConfig
+
+  return (
+    <Panel icon={MapPin} title={t.title} description={t.description} className={className}>
+      <ChartContainer config={config} className="aspect-auto w-full" style={{ height: Math.max(180, rows.length * 44) }}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
+          <XAxis type="number" hide />
+          <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={96} tick={{ fontSize: 12 }} />
+          <ChartTooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltipContent hideLabel nameKey="count" />} />
+          <Bar dataKey="count" fill="var(--color-count)" radius={6} maxBarSize={26} background={{ fill: "var(--muted)", radius: 6 }}>
+            <LabelList dataKey="count" position="right" className="fill-foreground text-xs font-semibold" />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    </Panel>
+  )
+}
+
+function PopularityCard({ data, className }: { data: AnalyticsDashboardData; className?: string }) {
+  const t = useT(analyticsMessages).popularity
+  const f = useFormat()
+  const rows = data.cropPopularityRanking.slice(0, 8).map((c, i) => ({
+    ...c,
+    label: f.pick(c.nameTh, c.name),
+    fill: i === 0 ? "var(--chart-1)" : i < 3 ? "var(--chart-2)" : "color-mix(in oklch, var(--chart-2) 45%, transparent)",
+  }))
+  const config = { count: { label: t.count, color: "var(--chart-1)" } } satisfies ChartConfig
+
+  return (
+    <Panel icon={Award} title={t.title} description={t.description} className={className}>
+      {rows.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">—</p>
+      ) : (
+        <>
+          <ChartContainer config={config} className="aspect-auto w-full" style={{ height: Math.max(200, rows.length * 40) }}>
+            <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={92} tick={{ fontSize: 12 }} />
+              <ChartTooltip
+                cursor={{ fill: "var(--muted)" }}
+                content={
+                  <ChartTooltipContent
+                    hideLabel
+                    formatter={(value, _name, item) => (
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="font-semibold text-foreground">{item.payload.label}</span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {t.times(Number(value))} · {t.avgScore(item.payload.averageScore)}
+                        </span>
+                      </div>
+                    )}
+                  />
+                }
               />
-              <div
-                className="bg-amber-500 h-full transition-all duration-500"
-                style={{ width: `${data.soilHealthDistribution.deficientPercentage}%` }}
-                title={`ขาดแคลน: ${data.soilHealthDistribution.deficientPercentage}%`}
-              />
-              <div
-                className="bg-purple-500 h-full transition-all duration-500"
-                style={{ width: `${data.soilHealthDistribution.excessPercentage}%` }}
-                title={`ตกค้างเกินเกณฑ์: ${data.soilHealthDistribution.excessPercentage}%`}
-              />
-            </div>
-
-            {/* Health Legend */}
-            <div className="grid grid-cols-3 gap-2 text-center pt-1">
-              <div className="p-2.5 rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/50">
-                <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">สมดุลพอดี</p>
-                <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200 mt-0.5">
-                  {data.soilHealthDistribution.optimalPercentage}%
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
-                <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">ขาดแคลน</p>
-                <p className="text-xl font-bold text-amber-800 dark:text-amber-200 mt-0.5">
-                  {data.soilHealthDistribution.deficientPercentage}%
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/50">
-                <p className="text-[11px] font-medium text-purple-700 dark:text-purple-300">ตกค้างสะสม</p>
-                <p className="text-xl font-bold text-purple-800 dark:text-purple-200 mt-0.5">
-                  {data.soilHealthDistribution.excessPercentage}%
-                </p>
-              </div>
-            </div>
-
-            {/* pH Distribution Levels */}
-            <div className="space-y-2 pt-2 border-t">
-              <p className="text-xs font-semibold text-foreground">การกระจายตัวของค่าความเป็นกรด-ด่าง (pH)</p>
-              <div className="space-y-2">
-                {data.phCategoryDistribution.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">{item.labelTh}</span>
-                      <span className="font-bold">{item.percentage}% ({item.count} ตัวอย่าง)</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          item.category === "strongly_acidic"
-                            ? "bg-red-500"
-                            : item.category === "moderately_acidic"
-                            ? "bg-amber-500"
-                            : item.category === "optimal"
-                            ? "bg-emerald-500"
-                            : "bg-blue-500"
-                        }`}
-                        style={{ width: `${item.percentage}%` }}
-                      />
-                    </div>
-                  </div>
+              <Bar dataKey="count" radius={6} maxBarSize={24}>
+                {rows.map((r) => (
+                  <Cell key={r.cropId} fill={r.fill} />
                 ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Average Soil Metrics */}
-        <Card className="border-border/60 shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              ค่าเฉลี่ยธาตุอาหารในดินทั่วประเทศ
-            </CardTitle>
-            <CardDescription className="text-xs">
-              คำนวณจากผลตรวจวิเคราะห์ตัวอย่างดินจริงในระบบ
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Nitrogen */}
-              <div className="p-3.5 rounded-xl border bg-card">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>ไนโตรเจน (N)</span>
-                  <span className="text-[10px] text-emerald-600 font-medium">เป้าหมาย: 100-160</span>
-                </div>
-                <p className="text-2xl font-black text-foreground mt-1">
-                  {data.averageSoilMetrics.nitrogen} <span className="text-xs font-normal text-muted-foreground">มก./กก.</span>
-                </p>
-                <div className="h-1.5 w-full bg-muted rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="bg-blue-500 h-full rounded-full"
-                    style={{ width: `${Math.min(100, (data.averageSoilMetrics.nitrogen / 200) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Phosphorus */}
-              <div className="p-3.5 rounded-xl border bg-card">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>ฟอสฟอรัส (P)</span>
-                  <span className="text-[10px] text-emerald-600 font-medium">เป้าหมาย: 30-60</span>
-                </div>
-                <p className="text-2xl font-black text-foreground mt-1">
-                  {data.averageSoilMetrics.phosphorus} <span className="text-xs font-normal text-muted-foreground">มก./กก.</span>
-                </p>
-                <div className="h-1.5 w-full bg-muted rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="bg-amber-500 h-full rounded-full"
-                    style={{ width: `${Math.min(100, (data.averageSoilMetrics.phosphorus / 100) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Potassium */}
-              <div className="p-3.5 rounded-xl border bg-card">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>โพแทสเซียม (K)</span>
-                  <span className="text-[10px] text-emerald-600 font-medium">เป้าหมาย: 60-120</span>
-                </div>
-                <p className="text-2xl font-black text-foreground mt-1">
-                  {data.averageSoilMetrics.potassium} <span className="text-xs font-normal text-muted-foreground">มก./กก.</span>
-                </p>
-                <div className="h-1.5 w-full bg-muted rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="bg-purple-500 h-full rounded-full"
-                    style={{ width: `${Math.min(100, (data.averageSoilMetrics.potassium / 150) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* pH */}
-              <div className="p-3.5 rounded-xl border bg-card">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>กรด-ด่าง (pH)</span>
-                  <span className="text-[10px] text-emerald-600 font-medium">สมดุล: 6.0-7.0</span>
-                </div>
-                <p className="text-2xl font-black text-foreground mt-1">
-                  {data.averageSoilMetrics.ph} <span className="text-xs font-normal text-muted-foreground">pH</span>
-                </p>
-                <div className="h-1.5 w-full bg-muted rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full"
-                    style={{ width: `${Math.min(100, (data.averageSoilMetrics.ph / 10) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Regional Activity Breakdown */}
-            <div className="space-y-2 pt-2 border-t">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-primary" />
-                สัดส่วนการตรวจวิเคราะห์จำแนกตามภูมิภาค
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {data.regionalActivity.map((reg, idx) => (
-                  <Badge key={idx} variant="outline" className="text-xs px-2.5 py-1">
-                    {reg.regionTh}: <span className="font-bold ml-1">{reg.count} ครั้ง</span>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Crop Popularity Leaderboard & Live Timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Popular Recommended Crops */}
-        <Card className="border-border/60 shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Award className="h-4 w-4 text-amber-500" />
-              พืชที่ได้รับการแนะนำสูงสุด (Most Recommended)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              อันดับพืชที่ระบบประเมินว่าเหมาะสมกับดินของเกษตรกรบ่อยครั้งที่สุด
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {data.cropPopularityRanking.map((crop, idx) => (
-              <div
-                key={crop.cropId}
-                className="p-3 rounded-xl border bg-card flex items-center justify-between hover-lift transition-smooth hover:border-primary/40"
+                <LabelList dataKey="count" position="right" className="fill-foreground text-xs font-semibold" />
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {rows.slice(0, 3).map((r, i) => (
+              <span
+                key={r.cropId}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold",
+                  TONE_BADGE[scoreTone(r.averageScore)]
+                )}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`h-7 w-7 rounded-lg flex items-center justify-center font-black text-xs ${
-                      idx === 0
-                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                        : idx === 1
-                        ? "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-                        : idx === 2
-                        ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    #{idx + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{crop.nameTh}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {crop.name} · {crop.category}
-                    </p>
-                  </div>
-                </div>
+                #{i + 1} {r.label} · {t.avgScore(r.averageScore)}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </Panel>
+  )
+}
 
-                <div className="text-right">
-                  <Badge variant="secondary" className="font-bold text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    เฉลี่ย {crop.averageScore}%
-                  </Badge>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    แนะนำแล้ว {crop.count} ครั้ง
+function TimelineCard({
+  timeline,
+  className,
+}: {
+  timeline: AnalyticsDashboardData["recentActivityTimeline"]
+  className?: string
+}) {
+  const t = useT(analyticsMessages).timeline
+  const common = useT(commonMessages)
+  const f = useFormat()
+
+  return (
+    <Panel icon={Clock} title={t.title} description={t.description} className={className}>
+      {timeline.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">{t.empty}</p>
+      ) : (
+        <Stagger className="relative space-y-1">
+          <span className="absolute top-3 bottom-3 left-[7px] w-px bg-border" aria-hidden />
+          {timeline.slice(0, 6).map((item, i) => {
+            const tone = scoreTone(item.suitabilityScore)
+            return (
+              <StaggerItem key={item.id} className="relative flex items-start gap-3 rounded-xl py-2 pr-2">
+                <span className="relative mt-1.5 flex size-[15px] shrink-0 items-center justify-center">
+                  {i === 0 && <span className="absolute inset-0 animate-ping rounded-full bg-success/40" />}
+                  <span className="relative size-2.5 rounded-full bg-primary ring-4 ring-card" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{item.cropNameTh}</p>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                        TONE_BADGE[tone]
+                      )}
+                    >
+                      {t.match(item.suitabilityScore)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {f.relative(item.createdAt)}
+                    {item.recommendationLevel && ` · ${common.levels[item.recommendationLevel] ?? item.recommendationLevel}`}
                   </p>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              </StaggerItem>
+            )
+          })}
+        </Stagger>
+      )}
+    </Panel>
+  )
+}
 
-        {/* Live Testing Timeline */}
-        <Card className="border-border/60 shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-blue-500" />
-              การตรวจวิเคราะห์ล่าสุด (Real-time Activity)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              บันทึกกิจกรรมการตรวจและแนะนำพืชล่าสุดในระบบ
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {timeline.length > 0 ? (
-              timeline.slice(0, 6).map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 rounded-xl border bg-muted/20 flex items-center justify-between text-xs hover-lift transition-smooth hover:border-primary/40"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <div>
-                      <p className="font-bold text-foreground">{item.cropNameTh}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {new Date(item.createdAt).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${
-                      item.suitabilityScore >= 85
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                        : "border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                    }`}
-                  >
-                    ความเข้ากัน {item.suitabilityScore}%
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground py-6 text-center">
-                ยังไม่มีข้อมูลกิจกรรมล่าสุด
-              </p>
-            )}
-          </CardContent>
-        </Card>
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="surface space-y-3 p-5">
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-28 rounded-md" />
+              <Skeleton className="size-8 rounded-lg" />
+            </div>
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-3 w-36 rounded-md" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Skeleton className="h-72" />
+        <Skeleton className="h-72" />
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <Skeleton className="h-96 lg:col-span-3" />
+        <Skeleton className="h-96 lg:col-span-2" />
       </div>
     </div>
   )

@@ -2,9 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AnimatePresence, motion } from "motion/react"
+import { toast } from "sonner"
 import { Heart } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { authClient } from "@/lib/auth-client"
 import { addFavorite, removeFavorite, fetchFavorites } from "@/lib/api"
+import { useT } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
+import { favoriteMessages } from "../messages"
 
 interface FavoriteButtonProps {
   cropId: string
@@ -13,9 +19,12 @@ interface FavoriteButtonProps {
 
 export function FavoriteButton({ cropId, className = "" }: FavoriteButtonProps) {
   const router = useRouter()
+  const t = useT(favoriteMessages)
   const { data: session } = authClient.useSession()
   const [isFav, setIsFav] = useState(false)
   const [loading, setLoading] = useState(false)
+  // Bumped on each "add" so the burst animation replays
+  const [burst, setBurst] = useState(0)
 
   useEffect(() => {
     if (!session?.user || !cropId) return
@@ -32,43 +41,74 @@ export function FavoriteButton({ cropId, className = "" }: FavoriteButtonProps) 
     e.stopPropagation()
 
     if (!session?.user) {
-      if (confirm("กรุณาเข้าสู่ระบบเพื่อบันทึกพืชในรายการโปรด ต้องการเข้าสู่ระบบตอนนี้หรือไม่?")) {
-        router.push("/login")
-      }
+      toast(t.loginTitle, {
+        icon: <Heart className="size-4 text-destructive" />,
+        action: { label: t.loginAction, onClick: () => router.push("/login") },
+      })
       return
     }
 
     setLoading(true)
     const nextState = !isFav
     setIsFav(nextState) // Optimistic update
+    if (nextState) setBurst((b) => b + 1)
 
     try {
-      if (nextState) {
-        await addFavorite(cropId)
-      } else {
-        await removeFavorite(cropId)
-      }
+      const ok = nextState ? await addFavorite(cropId) : await removeFavorite(cropId)
+      if (!ok) throw new Error("Favorite request failed")
+      toast.success(nextState ? t.added : t.removed)
     } catch (err) {
       console.error("Favorite toggle failed:", err)
       setIsFav(!nextState) // Revert on failure
+      toast.error(t.failed)
     } finally {
       setLoading(false)
     }
   }
 
+  const label = isFav ? t.remove : t.add
+
   return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      disabled={loading}
-      title={isFav ? "นำออกจากรายการโปรด" : "เพิ่มในรายการโปรด"}
-      className={`p-1.5 rounded-lg transition-transform active:scale-90 ${
-        isFav
-          ? "text-rose-500 hover:text-rose-600 bg-rose-50 dark:bg-rose-950/40"
-          : "text-muted-foreground/60 hover:text-rose-500 hover:bg-rose-50/50"
-      } ${className}`}
-    >
-      <Heart className={`h-4 w-4 transition-colors ${isFav ? "fill-rose-500" : ""}`} />
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        onClick={handleToggle}
+        disabled={loading}
+        aria-label={label}
+        aria-pressed={isFav}
+        className={cn(
+          "relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-70",
+          isFav
+            ? "bg-danger-soft text-destructive hover:bg-danger-soft/70"
+            : "text-muted-foreground hover:bg-danger-soft hover:text-destructive",
+          className
+        )}
+      >
+        <AnimatePresence>
+          {burst > 0 && isFav && (
+            <motion.span
+              key={burst}
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-destructive/40"
+              initial={{ opacity: 0.8, scale: 0.6 }}
+              animate={{ opacity: 0, scale: 1.5 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+        <motion.span
+          key={isFav ? "on" : "off"}
+          initial={{ scale: isFav ? 0.5 : 1 }}
+          animate={{ scale: 1 }}
+          whileTap={{ scale: 0.8 }}
+          transition={{ type: "spring", stiffness: 520, damping: 14 }}
+          className="inline-flex"
+        >
+          <Heart className={cn("size-4.5 transition-colors", isFav && "fill-destructive")} />
+        </motion.span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }

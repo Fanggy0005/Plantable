@@ -1,157 +1,216 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Activity,
-  Calendar,
-  Layers,
-  Sparkles,
-  Leaf,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Info,
-} from "lucide-react"
-import { NutrientDeficiencyCard } from "./NutrientDeficiencyCard"
-import { FertilizerScheduleCard } from "./FertilizerScheduleCard"
-import { SoilAmendmentCard } from "./SoilAmendmentCard"
+import { Activity, FlaskConical, Leaf, Lightbulb, Sprout, TestTube } from "lucide-react"
+import { motion } from "motion/react"
+import { CountUp, EASE_OUT, FadeIn, Stagger, StaggerItem } from "@/components/motion"
+import { SectionHeading } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/States"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useT } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
 import type { SoilImprovementPlan } from "@/types"
+import { soilImprovementMessages } from "../messages"
+import { FertilizerScheduleCard } from "./FertilizerScheduleCard"
+import { NutrientDeficiencyCard, STATUS_TONE } from "./NutrientDeficiencyCard"
+import { OrganicAlternativesCard, PhCorrectionCard } from "./SoilAmendmentCard"
 
 interface SoilImprovementSectionProps {
   plan: SoilImprovementPlan
   cropNameTh?: string
 }
 
-export function SoilImprovementSection({ plan, cropNameTh }: SoilImprovementSectionProps) {
-  const [activeTab, setActiveTab] = useState<"diagnostics" | "fertilizer" | "amendments">("diagnostics")
+type TabKey = "fertilizer" | "organic" | "ph" | "tips"
 
-  const healthScore = plan.soilHealthScore
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800"
-    if (score >= 60) return "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800"
-    return "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-950 dark:border-rose-800"
-  }
+function healthTone(score: number) {
+  if (score >= 80) return { color: "var(--success)", key: "good" as const }
+  if (score >= 60) return { color: "var(--warning)", key: "fair" as const }
+  return { color: "var(--destructive)", key: "poor" as const }
+}
+
+function HealthRing({ score }: { score: number }) {
+  const size = 132
+  const stroke = 11
+  const r = (size - stroke) / 2
+  const { color } = healthTone(score)
+  const clamped = Math.max(0, Math.min(100, score))
 
   return (
-    <div className="rounded-3xl border bg-card/60 backdrop-blur-xs p-6 sm:p-8 shadow-xs space-y-6">
-      {/* Top Banner: Soil Health Score & Agronomic Overview */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-6">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold border border-emerald-200/60">
-            <Sparkles className="h-3.5 w-3.5" />
-            ระบบผู้เชี่ยวชาญการปรับปรุงดินและวางแผนการใส่ปุ๋ย (Smart Soil Improvement)
-          </div>
-          <h3 className="text-2xl font-extrabold text-foreground tracking-tight">
-            แผนการปรับปรุงและฟื้นฟูดิน
-            {cropNameTh && (
-              <span className="text-primary ml-2 font-bold text-xl">
-                (เจาะจง: {cropNameTh})
-              </span>
-            )}
-          </h3>
-          <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-            {plan.overallConditionTh}
-          </p>
-        </div>
-
-        {/* Soil Health Score Badge */}
-        <div className={`p-4 rounded-2xl border flex items-center gap-3.5 shrink-0 ${getScoreColor(healthScore)}`}>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider block opacity-80">
-              คะแนนสุขภาพดิน (Soil Health)
-            </span>
-            <span className="text-3xl font-black font-mono leading-none">
-              {healthScore}
-              <span className="text-sm font-normal opacity-70">/100</span>
-            </span>
-          </div>
-          <ShieldCheck className="h-8 w-8 opacity-80" />
-        </div>
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          whileInView={{ pathLength: clamped / 100 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.2, ease: EASE_OUT }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-4xl font-bold tracking-tight text-foreground">
+          <CountUp value={clamped} />
+        </span>
+        <span className="text-xs font-medium text-muted-foreground">/ 100</span>
       </div>
-
-      {/* Feature Tabs Navigation */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab("diagnostics")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "diagnostics"
-              ? "bg-primary text-primary-foreground shadow-xs scale-[1.01]"
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Activity className="h-4 w-4" />
-          <span>1. การตรวจวินิจฉัยธาตุอาหาร ({plan.diagnostics.length} ตัว)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("fertilizer")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "fertilizer"
-              ? "bg-primary text-primary-foreground shadow-xs scale-[1.01]"
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Calendar className="h-4 w-4" />
-          <span>2. ตารางการใส่ปุ๋ยเคมีแบ่งระยะ ({plan.fertilizerRecommendations.length} ช่วง)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("amendments")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "amendments"
-              ? "bg-primary text-primary-foreground shadow-xs scale-[1.01]"
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          <span>3. ปรับสภาพดินและปุ๋ยอินทรีย์ ({plan.organicAlternatives.length} ชนิด)</span>
-        </button>
-      </div>
-
-      {/* Tab Panels */}
-      <div className="animate-fade-in pt-2">
-        {activeTab === "diagnostics" && (
-          <NutrientDeficiencyCard diagnostics={plan.diagnostics} />
-        )}
-
-        {activeTab === "fertilizer" && (
-          <FertilizerScheduleCard
-            schedule={plan.fertilizerRecommendations}
-            cropNameTh={cropNameTh}
-          />
-        )}
-
-        {activeTab === "amendments" && (
-          <SoilAmendmentCard
-            phCorrection={plan.phCorrection}
-            organicAlternatives={plan.organicAlternatives}
-          />
-        )}
-      </div>
-
-      {/* Practical Soil Management Best Practices */}
-      {plan.generalTipsTh && plan.generalTipsTh.length > 0 && (
-        <div className="pt-4 border-t">
-          <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider mb-2">
-            <Info className="h-4 w-4 text-emerald-600" />
-            ข้อแนะนำเพิ่มเติมจากนักปฐพีวิทยา
-          </h5>
-          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-muted-foreground">
-            {plan.generalTipsTh.map((tip, idx) => (
-              <li
-                key={idx}
-                className="bg-muted/30 p-3 rounded-xl border border-border/60 leading-relaxed"
-              >
-                {tip}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
+  )
+}
+
+export function SoilImprovementSection({ plan, cropNameTh }: SoilImprovementSectionProps) {
+  const t = useT(soilImprovementMessages)
+  const [tab, setTab] = useState<TabKey>("fertilizer")
+
+  const score = plan.soilHealthScore
+  const tone = healthTone(score)
+  const counts = plan.diagnostics.reduce(
+    (acc, d) => {
+      const tn = STATUS_TONE[d.status]
+      if (tn === "success") acc.optimal++
+      else if (tn === "info") acc.excess++
+      else acc.deficient++
+      return acc
+    },
+    { optimal: 0, deficient: 0, excess: 0 }
+  )
+
+  const tabs: { key: TabKey; label: string; icon: typeof Leaf }[] = [
+    { key: "fertilizer", label: t.tabs.fertilizer, icon: FlaskConical },
+    { key: "organic", label: t.tabs.organic, icon: Leaf },
+    { key: "ph", label: t.tabs.ph, icon: TestTube },
+    { key: "tips", label: t.tabs.tips, icon: Lightbulb },
+  ]
+
+  return (
+    <section className="space-y-6">
+      <SectionHeading
+        icon={Sprout}
+        title={cropNameTh ? t.titleFor(cropNameTh) : t.title}
+        description={plan.overallConditionTh}
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        {/* Soil health overview */}
+        <FadeIn className="surface flex flex-col items-center gap-4 p-6 text-center lg:self-start">
+          <p className="text-sm font-semibold text-muted-foreground">{t.health.label}</p>
+          <HealthRing score={score} />
+          <Badge
+            variant={tone.key === "good" ? "success" : tone.key === "fair" ? "warning" : "destructive"}
+            className="px-3 py-1 text-sm"
+          >
+            {t.health[tone.key]}
+          </Badge>
+          <div className="grid w-full grid-cols-3 gap-2 border-t border-border pt-4">
+            {[
+              { label: t.health.optimalCount, value: counts.optimal, cls: "text-success" },
+              { label: t.health.deficientCount, value: counts.deficient, cls: "text-warning" },
+              { label: t.health.excessCount, value: counts.excess, cls: "text-info" },
+            ].map((c) => (
+              <div key={c.label}>
+                <p className={cn("text-xl font-bold", c.cls)}>{c.value}</p>
+                <p className="text-[11px] text-muted-foreground">{c.label}</p>
+              </div>
+            ))}
+          </div>
+        </FadeIn>
+
+        {/* Diagnostics */}
+        <div className="min-w-0 space-y-3">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Activity className="size-4 text-primary" />
+            {t.diagnostics.title}
+          </h3>
+          <NutrientDeficiencyCard diagnostics={plan.diagnostics} />
+        </div>
+      </div>
+
+      {/* Action plan tabs */}
+      <FadeIn className="surface p-3 sm:p-5">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="gap-5">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4">
+            {tabs.map((item) => (
+              <TabsTrigger
+                key={item.key}
+                value={item.key}
+                className="h-10 rounded-xl data-active:bg-transparent data-active:text-primary data-active:shadow-none"
+              >
+                {tab === item.key && (
+                  <motion.span
+                    layoutId="soil-plan-tab"
+                    className="absolute inset-0 rounded-xl bg-card shadow-sm ring-1 ring-border"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <item.icon className="relative" />
+                <span className="relative">{item.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="fertilizer" className="px-1 sm:px-2">
+            <PanelMotion>
+              <FertilizerScheduleCard schedule={plan.fertilizerRecommendations} cropNameTh={cropNameTh} />
+            </PanelMotion>
+          </TabsContent>
+
+          <TabsContent value="organic" className="px-1 sm:px-2">
+            <PanelMotion>
+              <OrganicAlternativesCard organicAlternatives={plan.organicAlternatives} />
+            </PanelMotion>
+          </TabsContent>
+
+          <TabsContent value="ph" className="px-1 sm:px-2">
+            <PanelMotion>
+              <PhCorrectionCard phCorrection={plan.phCorrection} />
+            </PanelMotion>
+          </TabsContent>
+
+          <TabsContent value="tips" className="px-1 sm:px-2">
+            <PanelMotion>
+              {plan.generalTipsTh?.length ? (
+                <div className="space-y-4">
+                  <SectionHeading icon={Lightbulb} title={t.tips.title} />
+                  <Stagger className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {plan.generalTipsTh.map((tip, idx) => (
+                      <StaggerItem
+                        key={idx}
+                        className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground"
+                      >
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-primary">
+                          {idx + 1}
+                        </span>
+                        {tip}
+                      </StaggerItem>
+                    ))}
+                  </Stagger>
+                </div>
+              ) : (
+                <EmptyState icon={Lightbulb} title={t.tips.empty} />
+              )}
+            </PanelMotion>
+          </TabsContent>
+        </Tabs>
+      </FadeIn>
+    </section>
+  )
+}
+
+/** Soft enter animation each time a tab panel mounts. */
+function PanelMotion({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: EASE_OUT }}
+    >
+      {children}
+    </motion.div>
   )
 }

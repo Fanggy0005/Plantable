@@ -1,5 +1,17 @@
 "use client"
 
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { cn } from "@/lib/utils"
+import { chartMessages } from "./messages"
+
 interface NPKRadarChartProps {
   soil: {
     nitrogen: number
@@ -14,171 +26,153 @@ interface NPKRadarChartProps {
     ph: number
   }
   cropName?: string
+  /** Chart height in px */
   size?: number
+  className?: string
 }
 
-export function NPKRadarChart({
-  soil,
-  breakdown,
-  cropName,
-  size = 280,
-}: NPKRadarChartProps) {
-  const center = size / 2
-  const maxRadius = (size / 2) - 45
+interface AxisDatum {
+  key: string
+  label: string
+  value: string
+  soil: number
+  score: number
+  target: number
+}
 
-  // 4 axes: 0=Top(N), 1=Right(P), 2=Bottom(K), 3=Left(pH)
-  const axes = [
-    { label: "N (ไนโตรเจน)", value: soil.nitrogen, unit: "mg/kg", score: breakdown?.nitrogen ?? 100 },
-    { label: "P (ฟอสฟอรัส)", value: soil.phosphorus, unit: "mg/kg", score: breakdown?.phosphorus ?? 100 },
-    { label: "K (โพแทสเซียม)", value: soil.potassium, unit: "mg/kg", score: breakdown?.potassium ?? 100 },
-    { label: "pH (กรด-ด่าง)", value: soil.ph, unit: "", score: breakdown?.ph ?? 100 },
-  ]
+/** Radar of per-nutrient match scores (0–100) against the crop's 100% requirement. */
+export function NPKRadarChart({ soil, breakdown, cropName, size = 280, className }: NPKRadarChartProps) {
+  const t = useT(chartMessages).radar
+  const common = useT(commonMessages)
 
-  // Convert (radius, angleIndex) to (x, y) coordinates
-  const getCoordinates = (radius: number, index: number) => {
-    // 0: top (-90 deg), 1: right (0 deg), 2: bottom (90 deg), 3: left (180 deg)
-    const angle = (Math.PI / 2) * index - Math.PI / 2
-    const x = center + radius * Math.cos(angle)
-    const y = center + radius * Math.sin(angle)
-    return { x, y }
-  }
-
-  // Generate grid rings at 25%, 50%, 75%, 100%
-  const gridLevels = [0.25, 0.5, 0.75, 1.0]
-
-  // Soil match points based on nutrient score (0 - 100)
-  const soilPoints = axes.map((axis, i) => {
-    const fraction = Math.max(0.15, Math.min(1.0, axis.score / 100))
-    return getCoordinates(maxRadius * fraction, i)
+  const axes: AxisDatum[] = (
+    [
+      ["nitrogen", "N", `${soil.nitrogen} ${common.units.mgPerKg}`],
+      ["phosphorus", "P", `${soil.phosphorus} ${common.units.mgPerKg}`],
+      ["potassium", "K", `${soil.potassium} ${common.units.mgPerKg}`],
+      ["ph", "pH", `${soil.ph}`],
+    ] as const
+  ).map(([key, short, value]) => {
+    const score = breakdown?.[key] ?? 100
+    return {
+      key: short,
+      label: `${short} · ${common.nutrients[key]}`,
+      value,
+      score,
+      // Keep a visible minimum so a 0 score still draws a shape
+      soil: Math.max(15, Math.min(100, score)),
+      target: 100,
+    }
   })
 
-  const soilPolygonPoints = soilPoints.map((p) => `${p.x},${p.y}`).join(" ")
+  const config = {
+    soil: { label: t.soil, color: "var(--chart-2)" },
+    target: { label: t.target, color: "var(--chart-1)" },
+  } satisfies ChartConfig
 
   return (
-    <div className="flex flex-col items-center bg-card rounded-2xl p-4 border border-border/60 shadow-xs">
-      <div className="flex items-center justify-between w-full mb-1">
-        <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
-          เรดาร์ความสมดุลธาตุอาหาร (NPK & pH)
-        </h4>
+    <div className={cn("surface p-4 sm:p-5", className)}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">{t.title}</h4>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t.subtitle}</p>
+        </div>
         {cropName && (
-          <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
-            เทียบกับ {cropName}
+          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-secondary-foreground">
+            {t.vs(cropName)}
           </span>
         )}
       </div>
 
-      <svg width={size} height={size} className="overflow-visible select-none">
-        {/* Concentric grid webs */}
-        {gridLevels.map((lvl) => {
-          const ringPoints = [0, 1, 2, 3]
-            .map((i) => getCoordinates(maxRadius * lvl, i))
-            .map((p) => `${p.x},${p.y}`)
-            .join(" ")
-
-          return (
-            <polygon
-              key={lvl}
-              points={ringPoints}
-              fill="transparent"
-              stroke="currentColor"
-              strokeWidth={lvl === 1 ? "1.5" : "1"}
-              strokeDasharray={lvl === 1 ? "none" : "3,3"}
-              className={lvl === 1 ? "text-emerald-300/80 dark:text-emerald-800/80" : "text-muted-foreground/20"}
-            />
-          )
-        })}
-
-        {/* Axis lines */}
-        {[0, 1, 2, 3].map((i) => {
-          const outer = getCoordinates(maxRadius, i)
-          return (
-            <line
-              key={i}
-              x1={center}
-              y1={center}
-              x2={outer.x}
-              y2={outer.y}
-              stroke="currentColor"
-              strokeWidth="1"
-              className="text-muted-foreground/25"
-            />
-          )
-        })}
-
-        {/* 100% Ideal Target Boundary */}
-        <polygon
-          points={[0, 1, 2, 3]
-            .map((i) => getCoordinates(maxRadius, i))
-            .map((p) => `${p.x},${p.y}`)
-            .join(" ")}
-          fill="rgba(16, 185, 129, 0.04)"
-          stroke="#059669"
-          strokeWidth="1"
-          strokeDasharray="4,4"
-        />
-
-        {/* Soil Measured Polygon */}
-        <polygon
-          points={soilPolygonPoints}
-          fill="rgba(5, 150, 105, 0.3)"
-          stroke="#059669"
-          strokeWidth="2.5"
-          className="transition-all duration-700 ease-out"
-        />
-
-        {/* Vertex dots */}
-        {soilPoints.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r="4.5"
-            fill="#ffffff"
-            stroke="#059669"
-            strokeWidth="2.5"
-            className="transition-all duration-700 ease-out"
+      <ChartContainer config={config} className="mx-auto aspect-auto w-full" style={{ height: size }}>
+        <RadarChart data={axes} outerRadius="68%" margin={{ top: 16, right: 24, bottom: 16, left: 24 }}>
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                labelFormatter={(_, payload) => {
+                  const d = payload?.[0]?.payload as AxisDatum | undefined
+                  return d ? `${d.label} (${d.value})` : ""
+                }}
+                formatter={(_, name, item) => {
+                  const d = item.payload as AxisDatum
+                  const isSoil = name === "soil"
+                  return (
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span
+                          className="size-2 rounded-[2px]"
+                          style={{ background: isSoil ? "var(--color-soil)" : "var(--color-target)" }}
+                        />
+                        {isSoil ? t.soil : t.target}
+                      </span>
+                      <span className="font-mono font-medium text-foreground tabular-nums">
+                        {isSoil ? d.score : 100}%
+                      </span>
+                    </div>
+                  )
+                }}
+              />
+            }
           />
+          <PolarGrid gridType="polygon" className="stroke-border" />
+          <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} tickCount={5} />
+          <PolarAngleAxis
+            dataKey="key"
+            tick={({ x, y, textAnchor, index }) => {
+              const d = axes[index]
+              if (!d) return <g />
+              return (
+                <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central">
+                  <tspan x={x} className="fill-foreground text-[12px] font-semibold">
+                    {d.key}
+                  </tspan>
+                  <tspan x={x} dy="1.2em" className="fill-muted-foreground text-[10px]">
+                    {d.score}%
+                  </tspan>
+                </text>
+              )
+            }}
+          />
+          <Radar
+            dataKey="target"
+            stroke="var(--color-target)"
+            strokeDasharray="4 4"
+            strokeWidth={1.5}
+            fill="var(--color-target)"
+            fillOpacity={0.04}
+            isAnimationActive={false}
+          />
+          <Radar
+            dataKey="soil"
+            stroke="var(--color-soil)"
+            strokeWidth={2.5}
+            fill="var(--color-soil)"
+            fillOpacity={0.3}
+            dot={{ r: 4, fillOpacity: 1, fill: "var(--card)", strokeWidth: 2 }}
+            animationDuration={900}
+            animationEasing="ease-out"
+          />
+        </RadarChart>
+      </ChartContainer>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {axes.map((a) => (
+          <div key={a.key} className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+            <p className="truncate text-[11px] text-muted-foreground">{a.label}</p>
+            <p className="text-xs font-semibold text-foreground tabular-nums">{a.value}</p>
+          </div>
         ))}
+      </div>
 
-        {/* Axis Labels */}
-        {axes.map((axis, i) => {
-          const labelDist = maxRadius + 24
-          const pos = getCoordinates(labelDist, i)
-
-          let textAnchor: "middle" | "start" | "end" = "middle"
-          if (i === 1) textAnchor = "start"
-          if (i === 3) textAnchor = "end"
-
-          return (
-            <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
-              <text
-                textAnchor={textAnchor}
-                className="text-[11px] font-bold fill-foreground"
-                dy={i === 0 ? "-6" : i === 2 ? "14" : "4"}
-              >
-                {axis.label}
-              </text>
-              <text
-                textAnchor={textAnchor}
-                className="text-[10px] font-medium fill-emerald-700 dark:fill-emerald-400"
-                dy={i === 0 ? "8" : i === 2 ? "26" : "18"}
-              >
-                {axis.value} {axis.unit} ({axis.score}%)
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-
-      <div className="flex items-center gap-4 text-[11px] text-muted-foreground mt-2">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600"></span>
-          ค่าดินจริงของคุณ
+          <span className="size-2.5 rounded-sm bg-chart-2" />
+          {t.soil}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 border border-dashed border-emerald-600 rounded-sm"></span>
-          ระดับที่พืชต้องการ (100%)
+          <span className="size-2.5 rounded-sm border border-dashed border-chart-1" />
+          {t.target} (100%)
         </span>
       </div>
     </div>

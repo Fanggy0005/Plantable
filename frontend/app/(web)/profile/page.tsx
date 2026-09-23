@@ -3,23 +3,32 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AnimatePresence, motion } from "motion/react"
+import { toast } from "sonner"
 import {
-  User,
-  Mail,
-  Calendar,
+  ArrowRight,
+  BadgeCheck,
+  CalendarDays,
   Heart,
+  Loader2,
+  LogOut,
+  Mail,
+  Save,
+  Search,
   TestTube2,
   Trash2,
-  ArrowRight,
-  Loader2,
-  Save,
-  CheckCircle2,
-  AlertCircle,
-  LogOut,
+  UserRound,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { FadeIn, Stagger, StaggerItem } from "@/components/motion"
+import { CropIcon } from "@/components/shared/CropIcon"
+import { SectionHeading } from "@/components/shared/PageHeader"
+import { StatCard } from "@/components/shared/StatCard"
+import { EmptyState } from "@/components/shared/States"
 import { authClient } from "@/lib/auth-client"
 import {
   fetchUserProfile,
@@ -27,10 +36,33 @@ import {
   fetchFavorites,
   removeFavorite,
 } from "@/lib/api"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { profileMessages } from "@/features/profile/messages"
 import type { Crop } from "@/types"
+
+function ProfileSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-10 sm:px-6 sm:py-14">
+      <Skeleton className="h-40 w-full rounded-3xl" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-28" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+        <Skeleton className="h-72" />
+        <Skeleton className="h-72" />
+      </div>
+    </div>
+  )
+}
 
 export default function ProfilePage() {
   const router = useRouter()
+  const t = useT(profileMessages)
+  const c = useT(commonMessages)
+  const fmt = useFormat()
   const { data: session, isPending: sessionPending } = authClient.useSession()
 
   const [profile, setProfile] = useState<any>(null)
@@ -38,7 +70,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [editingName, setEditingName] = useState("")
   const [savingName, setSavingName] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
     if (!sessionPending && !session?.user) {
@@ -74,25 +105,27 @@ export default function ProfilePage() {
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault()
     setSavingName(true)
-    setSaveSuccess(false)
     try {
       const updated = await updateUserProfile({ name: editingName })
       setProfile((prev: any) => ({ ...prev, name: updated.name }))
-      setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 3000)
+      toast.success(t.edit.saved)
     } catch (err) {
       console.error("Failed to update profile", err)
+      toast.error(t.edit.failed)
     } finally {
       setSavingName(false)
     }
   }
 
-  const handleRemoveFavorite = async (cropId: string) => {
+  const handleRemoveFavorite = async (crop: Crop) => {
     try {
-      await removeFavorite(cropId)
-      setFavorites((prev) => prev.filter((c) => c.id !== cropId))
+      const ok = await removeFavorite(crop.id)
+      if (!ok) throw new Error("Remove favorite failed")
+      setFavorites((prev) => prev.filter((f) => f.id !== crop.id))
+      toast.success(t.favorites.removed(fmt.pick(crop.nameTh, crop.name)))
     } catch (err) {
       console.error("Failed to remove favorite", err)
+      toast.error(t.favorites.removeFailed)
     }
   }
 
@@ -103,213 +136,221 @@ export default function ProfilePage() {
   }
 
   if (sessionPending || loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-7 w-7 animate-spin text-primary" />
-          <p className="text-xs">กำลังโหลดข้อมูลโปรไฟล์...</p>
-        </div>
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
-  const memberDate = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString("th-TH", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "เมื่อเร็วๆ นี้"
+  const displayName = profile?.name || session?.user?.name || t.fallbackName
+  const initial = (profile?.name?.[0] || session?.user?.email?.[0] || "U").toUpperCase()
+  const memberDate = profile?.createdAt ? fmt.date(profile.createdAt) : t.stats.recently
+  const nameUnchanged = editingName.trim() === (profile?.name || "").trim()
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-14 animate-fade-in-up space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white text-2xl font-extrabold shadow-md">
-            {profile?.name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase()}
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {profile?.name || session?.user?.name || "เกษตรกร Plantable"}
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-              <Mail className="h-3.5 w-3.5" />
-              {session?.user?.email}
-            </p>
-          </div>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-10 sm:px-6 sm:py-14">
+      {/* Identity header */}
+      <FadeIn
+        immediate
+        className="relative overflow-hidden rounded-3xl bg-forest-gradient p-6 text-forest-foreground sm:p-8"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-dot-grid-dark opacity-50" />
+        <div className="pointer-events-none absolute -top-20 -right-16 size-72 rounded-full bg-forest-accent/15 blur-3xl" />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSignOut}
-          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 self-start sm:self-auto text-xs font-semibold"
-        >
-          <LogOut className="mr-1.5 h-3.5 w-3.5" />
-          ออกจากระบบ
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <TestTube2 className="h-3.5 w-3.5 text-emerald-600" />
-            จำนวนการวิเคราะห์ดิน
-          </span>
-          <p className="text-3xl font-black text-foreground">
-            {profile?._count?.analyses ?? 0}
-          </p>
-          <Link
-            href="/history"
-            className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold hover:underline inline-flex items-center gap-1 pt-1"
-          >
-            ดูประวัติทั้งหมด
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Heart className="h-3.5 w-3.5 text-rose-500" />
-            พืชที่บันทึกเป็นรายการโปรด
-          </span>
-          <p className="text-3xl font-black text-foreground">
-            {favorites.length}
-          </p>
-          <span className="text-[11px] text-muted-foreground block pt-1">
-            พร้อมดูเกณฑ์ธาตุอาหารทันที
-          </span>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-blue-500" />
-            สมาชิกตั้งแต่
-          </span>
-          <p className="text-sm font-bold text-foreground mt-2">
-            {memberDate}
-          </p>
-          <span className="text-[11px] text-emerald-600 font-semibold block pt-1">
-            สถานะบัญชี: ยืนยันแล้ว
-          </span>
-        </div>
-      </div>
-
-      {/* Edit Profile Section */}
-      <div className="rounded-2xl border bg-card p-6 sm:p-7 shadow-xs space-y-4">
-        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-          <User className="h-4 w-4 text-emerald-600" />
-          แก้ไขข้อมูลส่วนตัว
-        </h3>
-
-        <form onSubmit={handleUpdateName} className="space-y-4 max-w-md">
-          <div className="space-y-2">
-            <Label htmlFor="displayName" className="text-xs font-bold text-foreground">
-              ชื่อที่แสดง (Display Name)
-            </Label>
-            <Input
-              id="displayName"
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              placeholder="ระบุชื่อของคุณ"
-              className="text-sm focus-visible:ring-emerald-600"
-              required
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={savingName}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+              className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-forest-accent text-2xl font-extrabold text-forest shadow-[0_0_30px_-6px_var(--forest-accent)] sm:size-20 sm:text-3xl"
             >
+              {initial}
+            </motion.div>
+            <div className="min-w-0 space-y-1">
+              <p className="text-xs font-semibold tracking-wide text-forest-accent uppercase">{t.eyebrow}</p>
+              <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{displayName}</h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-forest-muted">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Mail className="size-3.5 shrink-0" />
+                  <span className="truncate">{session?.user?.email}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-forest-elevated/80 px-2 py-0.5 text-xs font-semibold text-forest-accent ring-1 ring-forest-border">
+                  <BadgeCheck className="size-3.5" />
+                  {t.verified}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            className="h-10 self-start border-forest-border bg-forest-elevated/50 text-forest-foreground hover:bg-forest-elevated hover:text-forest-foreground sm:self-auto"
+          >
+            <LogOut />
+            {t.logout}
+          </Button>
+        </div>
+      </FadeIn>
+
+      {/* Stats */}
+      <Stagger immediate className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StaggerItem>
+          <StatCard
+            label={t.stats.analyses}
+            value={profile?._count?.analyses ?? 0}
+            icon={TestTube2}
+            hint={
+              <Link
+                href="/history"
+                className="group inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+              >
+                {t.stats.viewHistory}
+                <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            }
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard label={t.stats.favorites} value={favorites.length} icon={Heart} />
+        </StaggerItem>
+        <StaggerItem>
+          <div className="surface-interactive h-full p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">{t.stats.memberSince}</span>
+              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-secondary text-primary">
+                <CalendarDays className="size-4" />
+              </span>
+            </div>
+            <p className="mt-2 text-lg font-bold tracking-tight text-foreground sm:text-xl">{memberDate}</p>
+          </div>
+        </StaggerItem>
+      </Stagger>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.4fr]">
+        {/* Edit details */}
+        <FadeIn className="surface space-y-6 p-6 sm:p-7">
+          <SectionHeading icon={UserRound} title={t.edit.title} description={t.edit.description} />
+
+          <form onSubmit={handleUpdateName} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="displayName" className="text-sm font-semibold text-foreground">
+                {t.edit.label}
+              </Label>
+              <Input
+                id="displayName"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder={t.edit.placeholder}
+                className="h-11 rounded-xl border-input bg-card text-base shadow-xs md:text-sm"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                {t.edit.email}
+              </Label>
+              <Input
+                id="email"
+                value={session?.user?.email ?? ""}
+                disabled
+                className="h-11 rounded-xl bg-muted text-base md:text-sm"
+              />
+              <p className="text-xs text-muted-foreground">{t.edit.emailHint}</p>
+            </div>
+
+            <Button type="submit" className="h-10 w-full sm:w-auto" disabled={savingName || nameUnchanged}>
               {savingName ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  กำลังบันทึก...
-                </span>
+                <>
+                  <Loader2 className="animate-spin" />
+                  {t.edit.saving}
+                </>
               ) : (
-                <span className="flex items-center gap-1.5">
-                  <Save className="h-3.5 w-3.5" />
-                  บันทึกการเปลี่ยนแปลง
-                </span>
+                <>
+                  <Save />
+                  {t.edit.save}
+                </>
               )}
             </Button>
+          </form>
+        </FadeIn>
 
-            {saveSuccess && (
-              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1 animate-fade-in">
-                <CheckCircle2 className="h-4 w-4" />
-                อัปเดตข้อมูลสำเร็จ
-              </span>
-            )}
-          </div>
-        </form>
-      </div>
+        {/* Favorites */}
+        <FadeIn delay={0.05} className="surface space-y-5 p-6 sm:p-7">
+          <SectionHeading
+            icon={Heart}
+            title={`${t.favorites.title} (${favorites.length})`}
+            description={t.favorites.description}
+            actions={
+              favorites.length > 0 && (
+                <Button variant="ghost" size="sm" render={<Link href="/crops" />} nativeButton={false}>
+                  <Search />
+                  {t.favorites.browse}
+                </Button>
+              )
+            }
+          />
 
-      {/* Favorite Crops Section */}
-      <div className="rounded-2xl border bg-card p-6 sm:p-7 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Heart className="h-4 w-4 text-rose-500 fill-rose-500" />
-            พืชที่คุณติดตาม ({favorites.length})
-          </h3>
-          <Link
-            href="/crops"
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            ค้นหาพืชเพิ่มเติม
-          </Link>
-        </div>
-
-        {favorites.length === 0 ? (
-          <div className="text-center py-8 border border-dashed rounded-xl text-muted-foreground space-y-2">
-            <p className="text-xs">ยังไม่มีพืชในรายการโปรด</p>
-            <Link href="/crops">
-              <Button size="sm" variant="outline" className="text-xs">
-                สำรวจพืชทั้งหมด 12 ชนิด
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {favorites.map((crop) => (
-              <div
-                key={crop.id}
-                className="flex items-center justify-between p-3.5 rounded-xl border border-border/70 hover:border-emerald-300 bg-muted/20 hover-lift"
-              >
-                <div>
-                  <Link
-                    href={`/crops/${crop.id}`}
-                    className="font-bold text-sm text-foreground hover:text-primary transition-colors"
-                  >
-                    {crop.nameTh}
-                  </Link>
-                  <p className="text-[11px] text-muted-foreground">
-                    {crop.name} • {crop.category}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <Link href={`/crops/${crop.id}`}>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                      ดูคู่มือ
-                    </Button>
-                  </Link>
-                  <button
-                    onClick={() => handleRemoveFavorite(crop.id)}
-                    title="ลบออกจากรายการโปรด"
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          {favorites.length === 0 ? (
+            <EmptyState
+              icon={Heart}
+              title={t.favorites.emptyTitle}
+              description={t.favorites.emptyBody}
+              action={
+                <Button render={<Link href="/crops" />} nativeButton={false}>
+                  {t.favorites.emptyAction}
+                  <ArrowRight />
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <AnimatePresence initial={false}>
+                {favorites.map((crop) => {
+                  const name = fmt.pick(crop.nameTh, crop.name)
+                  const secondary = fmt.locale === "th" ? crop.name : crop.nameTh
+                  return (
+                    <motion.li
+                      key={crop.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                      className="group relative flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/25 hover:bg-secondary/40"
+                    >
+                      <CropIcon name={crop.name} category={crop.category} />
+                      <Link
+                        href={`/crops/${crop.id}`}
+                        className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-xl"
+                        aria-label={`${t.favorites.open}: ${name}`}
+                      >
+                        <p className="truncate text-sm font-bold text-foreground">{name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {secondary} · {c.categories[crop.category] ?? crop.category}
+                        </p>
+                      </Link>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="relative z-10 size-10 text-muted-foreground hover:bg-danger-soft hover:text-destructive"
+                              onClick={() => handleRemoveFavorite(crop)}
+                              aria-label={t.favorites.remove}
+                            />
+                          }
+                        >
+                          <Trash2 />
+                        </TooltipTrigger>
+                        <TooltipContent>{t.favorites.remove}</TooltipContent>
+                      </Tooltip>
+                    </motion.li>
+                  )
+                })}
+              </AnimatePresence>
+            </ul>
+          )}
+        </FadeIn>
       </div>
     </div>
   )

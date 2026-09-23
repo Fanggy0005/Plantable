@@ -8,10 +8,8 @@ export const metadata: Metadata = {
 
 export default function AnalyticsPage() {
   return (
-    <div className="w-full bg-background bg-subtle-grid min-h-[calc(100vh-4rem)]">
-      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 animate-fade-in">
-        <AnalyticsDashboard />
-      </div>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <AnalyticsDashboard />
     </div>
   )
 }

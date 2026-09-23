@@ -3,32 +3,101 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AnimatePresence, motion } from "motion/react"
+import { toast } from "sonner"
 import {
-  History,
   ArrowRight,
-  TestTube2,
   Calendar,
-  Loader2,
-  Trash2,
+  Cloud,
   CloudUpload,
+  HardDrive,
+  History,
+  Loader2,
+  LogIn,
   Sparkles,
-  ExternalLink,
+  TestTube2,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/States"
+import { CropIcon } from "@/components/shared/CropIcon"
+import { EASE_OUT } from "@/components/motion"
 import { authClient } from "@/lib/auth-client"
-import { fetchUserHistory, deleteAnalysis, claimAnalysis } from "@/lib/api"
+import { fetchUserHistory, deleteAnalysis, claimAnalysis, fetchAnalysisById } from "@/lib/api"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { historyMessages } from "@/features/history/messages"
+import { scoreTone, TONE_BADGE } from "@/lib/score"
+import { cn } from "@/lib/utils"
+
+const LOCAL_KEY = "plantable_local_history"
+
+/** Cloud and local records have different shapes; normalize for display. */
+interface HistoryRow {
+  id: string
+  createdAt: string
+  isLocal: boolean
+  soil: { nitrogen?: number; phosphorus?: number; potassium?: number; ph?: number }
+  topCrops: Array<{ name?: string; nameTh?: string; category?: string; score?: number; level?: string }>
+  raw: any
+}
+
+function toRow(item: any, isLocal: boolean): HistoryRow {
+  const soil = isLocal ? item.soil ?? {} : item
+  return {
+    id: item.id,
+    createdAt: item.createdAt,
+    isLocal,
+    soil: {
+      nitrogen: soil?.nitrogen,
+      phosphorus: soil?.phosphorus,
+      potassium: soil?.potassium,
+      ph: soil?.ph,
+    },
+    topCrops: (item.recommendations ?? []).slice(0, 3).map((r: any) => ({
+      name: r.crop?.name,
+      nameTh: r.crop?.nameTh,
+      category: r.crop?.category,
+      score: r.suitabilityScore,
+      level: r.recommendationLevel,
+    })),
+    raw: item,
+  }
+}
+
+type PendingDelete = { kind: "one"; row: HistoryRow } | { kind: "clearLocal" } | null
 
 export default function HistoryPage() {
   const router = useRouter()
-  const { data: session, isPending: sessionPending } = authClient.useSession()
+  const t = useT(historyMessages)
+  const common = useT(commonMessages)
+  const { data: session } = authClient.useSession()
 
   const [dbHistory, setDbHistory] = useState<any[]>([])
   const [localHistory, setLocalHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadAllHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   const loadAllHistory = async () => {
@@ -37,7 +106,7 @@ export default function HistoryPage() {
     // 1. Load local cache
     try {
       if (typeof window !== "undefined") {
-        const stored = JSON.parse(localStorage.getItem("plantable_local_history") || "[]")
+        const stored = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]")
         setLocalHistory(stored)
       }
     } catch (e) {
@@ -57,16 +126,31 @@ export default function HistoryPage() {
     setLoading(false)
   }
 
-  const handleDelete = async (id: string, isLocal: boolean) => {
-    if (!confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรายการวิเคราะห์นี้?")) return
-
-    if (isLocal) {
-      const updated = localHistory.filter((item) => item.id !== id)
-      setLocalHistory(updated)
-      localStorage.setItem("plantable_local_history", JSON.stringify(updated))
-    } else {
-      await deleteAnalysis(id)
-      setDbHistory((prev) => prev.filter((item) => item.id !== id))
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      if (pendingDelete.kind === "clearLocal") {
+        localStorage.removeItem(LOCAL_KEY)
+        setLocalHistory([])
+        toast.success(t.cleared)
+      } else if (pendingDelete.row.isLocal) {
+        const updated = localHistory.filter((item) => item.id !== pendingDelete.row.id)
+        setLocalHistory(updated)
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(updated))
+        toast.success(t.deleted)
+      } else {
+        const ok = await deleteAnalysis(pendingDelete.row.id)
+        if (!ok) throw new Error("delete failed")
+        setDbHistory((prev) => prev.filter((item) => item.id !== pendingDelete.row.id))
+        toast.success(t.deleted)
+      }
+      setPendingDelete(null)
+    } catch (e) {
+      console.error("Delete error:", e)
+      toast.error(t.deleteFailed)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -79,245 +163,357 @@ export default function HistoryPage() {
           await claimAnalysis(item.id)
         }
       }
-      localStorage.removeItem("plantable_local_history")
+      localStorage.removeItem(LOCAL_KEY)
       setLocalHistory([])
       await loadAllHistory()
+      toast.success(t.syncDone)
     } catch (e) {
       console.error("Sync error:", e)
+      toast.error(t.syncFailed)
     } finally {
       setSyncing(false)
     }
   }
 
-  const handleOpenResult = (item: any) => {
-    if (item.fullResult) {
-      sessionStorage.setItem("plantResult", JSON.stringify(item.fullResult))
+  const handleOpenResult = async (row: HistoryRow) => {
+    if (row.raw.fullResult) {
+      sessionStorage.setItem("plantResult", JSON.stringify(row.raw.fullResult))
       router.push("/results")
-    } else {
-      // Re-run test with the stored soil parameters
-      router.push(`/analyze`)
+      return
     }
+    if (!row.isLocal) {
+      setOpeningId(row.id)
+      try {
+        const full = await fetchAnalysisById(row.id)
+        sessionStorage.setItem("plantResult", JSON.stringify(full))
+        router.push("/results")
+      } catch (e) {
+        console.error("Open analysis error:", e)
+        toast.error(t.openFailed)
+        setOpeningId(null)
+      }
+      return
+    }
+    // No stored result — re-run a test
+    router.push("/analyze")
   }
 
-  return (
-    <div className="w-full bg-background bg-subtle-grid min-h-[calc(100vh-4rem)]">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-14 animate-fade-in space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-950/10 pb-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-bold text-emerald-900 shadow-xs">
-              <History className="h-3.5 w-3.5 text-emerald-700" />
-              <span>ANALYSIS TIMELINE & LOGS</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              ประวัติการวิเคราะห์ดิน
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              ติดตามบันทึกผลการตรวจคุณภาพดินและคำแนะนำพืชย้อนหลังเพื่อดูความเปลี่ยนแปลงของผืนดิน
-            </p>
-          </div>
+  const cloudRows = dbHistory.map((item) => toRow(item, false))
+  const localRows = localHistory.map((item) => toRow(item, true))
+  const total = cloudRows.length + localRows.length
 
-          <div className="flex items-center gap-2">
+  return (
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+      <PageHeader
+        eyebrow={t.eyebrow}
+        icon={History}
+        title={t.title}
+        description={
+          <>
+            {t.description}
+            {!loading && total > 0 && (
+              <span className="mt-2 block text-sm font-semibold text-foreground">{t.count(total)}</span>
+            )}
+          </>
+        }
+        actions={
+          <>
             {session?.user && localHistory.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSyncLocalToDb}
-                disabled={syncing}
-                className="border-emerald-700/40 text-emerald-900 hover:bg-emerald-50 font-bold text-xs rounded-xl"
-              >
-                <CloudUpload className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                {syncing ? "กำลังซิงค์..." : `ซิงค์ ${localHistory.length} รายการเข้าบัญชี`}
+              <Button variant="outline" onClick={handleSyncLocalToDb} disabled={syncing} className="h-10">
+                {syncing ? <Loader2 className="animate-spin" /> : <CloudUpload />}
+                {syncing ? t.syncing : t.sync(localHistory.length)}
               </Button>
             )}
-
-            <Link href="/analyze">
-              <Button size="sm" className="bg-primary hover:bg-[#092918] text-primary-foreground font-bold shadow-xs rounded-xl">
-                <TestTube2 className="mr-1.5 h-4 w-4" />
-                วิเคราะห์แปลงใหม่
-              </Button>
-            </Link>
-          </div>
-        </div>
+            <Button className="h-10" render={<Link href="/analyze" />} nativeButton={false}>
+              <TestTube2 />
+              {t.newAnalysis}
+            </Button>
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="flex min-h-[300px] items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            <p className="text-xs font-medium">กำลังโหลดประวัติ...</p>
-          </div>
-        </div>
-      ) : dbHistory.length === 0 && localHistory.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-card rounded-2xl border border-dashed border-border text-muted-foreground space-y-4 max-w-md mx-auto">
-          <div className="h-12 w-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center mx-auto text-primary">
-            <Sparkles className="h-6 w-6 text-emerald-600" />
-          </div>
-          <div>
-            <h3 className="font-bold text-base text-foreground">ยังไม่มีประวัติการวิเคราะห์</h3>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              เมื่อคุณทำการตรวจวัดดิน ข้อมูลจะถูกบันทึกที่นี่โดยอัตโนมัติเพื่อให้คุณติดตามการเปลี่ยนแปลงของดินได้ตลอดเวลา
-            </p>
-          </div>
-          <Link href="/analyze">
-            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
-              เริ่มตรวจดินตอนนี้
+        <HistorySkeleton />
+      ) : total === 0 ? (
+        <EmptyState
+          icon={Sparkles}
+          title={t.emptyTitle}
+          description={t.emptyDescription}
+          action={
+            <Button size="lg" render={<Link href="/analyze" />} nativeButton={false}>
+              {t.emptyAction}
+              <ArrowRight />
             </Button>
-          </Link>
-        </div>
+          }
+        />
       ) : (
-        <div className="space-y-6">
-          {/* Authenticated DB History */}
-          {dbHistory.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                ประวัติในบัญชีคลาวด์ ({dbHistory.length})
-              </h3>
-              <div className="space-y-3">
-                {dbHistory.map((item) => {
-                  const topRec = item.recommendations?.[0]
-                  const date = new Date(item.createdAt).toLocaleDateString("th-TH", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-card p-5 shadow-xs hover-lift flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <span>{date}</span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-base font-bold text-foreground">
-                            พืชอันดับ 1: {topRec?.crop?.nameTh || "พืชแนะนำ"}
-                          </span>
-                          {topRec && (
-                            <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60">
-                              {topRec.suitabilityScore} คะแนน ({topRec.recommendationLevel})
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground font-mono">
-                          <span>N: {item.nitrogen} mg/kg</span>
-                          <span>•</span>
-                          <span>P: {item.phosphorus} mg/kg</span>
-                          <span>•</span>
-                          <span>K: {item.potassium} mg/kg</span>
-                          <span>•</span>
-                          <span>pH: {item.ph}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 self-end sm:self-center">
-                        <button
-                          onClick={() => handleDelete(item.id, false)}
-                          title="ลบรายการนี้"
-                          className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+        <div className="space-y-10">
+          {cloudRows.length > 0 && (
+            <HistorySection
+              icon={Cloud}
+              title={t.cloudSection}
+              count={cloudRows.length}
+              rows={cloudRows}
+              openingId={openingId}
+              onOpen={handleOpenResult}
+              onDelete={(row) => setPendingDelete({ kind: "one", row })}
+            />
           )}
 
-          {/* Local Guest History */}
-          {localHistory.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>ประวัติล่าสุดในเครื่องนี้ ({localHistory.length})</span>
-                {!session?.user && (
-                  <Link href="/login" className="text-primary normal-case font-semibold hover:underline">
-                    เข้าสู่ระบบเพื่อบันทึกถาวร
-                  </Link>
-                )}
-              </h3>
-              <div className="space-y-3">
-                {localHistory.map((item) => {
-                  const topRec = item.recommendations?.[0]
-                  const date = new Date(item.createdAt).toLocaleDateString("th-TH", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-card p-5 shadow-xs hover-lift flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <span>{date}</span>
-                          <span className="text-[10px] font-semibold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                            ในเครื่อง
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-base font-bold text-foreground">
-                            พืชอันดับ 1: {topRec?.crop?.nameTh || "พืชแนะนำ"}
-                          </span>
-                          {topRec && (
-                            <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60">
-                              {topRec.suitabilityScore} คะแนน ({topRec.recommendationLevel})
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground font-mono">
-                          <span>N: {item.soil?.nitrogen} mg/kg</span>
-                          <span>•</span>
-                          <span>P: {item.soil?.phosphorus} mg/kg</span>
-                          <span>•</span>
-                          <span>K: {item.soil?.potassium} mg/kg</span>
-                          <span>•</span>
-                          <span>pH: {item.soil?.ph}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 self-end sm:self-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenResult(item)}
-                          className="text-xs font-semibold hover:bg-emerald-50"
-                        >
-                          เปิดดูผลลัพธ์
-                          <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                        </Button>
-
-                        <button
-                          onClick={() => handleDelete(item.id, true)}
-                          title="ลบรายการนี้"
-                          className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+          {localRows.length > 0 && (
+            <HistorySection
+              icon={HardDrive}
+              title={t.localSection}
+              count={localRows.length}
+              hint={t.localHint}
+              actions={
+                <>
+                  {!session?.user && (
+                    <Button variant="ghost" size="sm" className="h-9 text-primary" render={<Link href="/login" />} nativeButton={false}>
+                      <LogIn />
+                      {t.loginToSave}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 text-muted-foreground hover:text-destructive"
+                    onClick={() => setPendingDelete({ kind: "clearLocal" })}
+                  >
+                    <Trash2 />
+                    {t.clearLocal}
+                  </Button>
+                </>
+              }
+              rows={localRows}
+              openingId={openingId}
+              onOpen={handleOpenResult}
+              onDelete={(row) => setPendingDelete({ kind: "one", row })}
+            />
           )}
         </div>
       )}
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && !deleting && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-danger-soft text-destructive">
+              <Trash2 />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {pendingDelete?.kind === "clearLocal" ? t.clearTitle : t.deleteTitle}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.kind === "clearLocal" ? t.clearDescription(localHistory.length) : t.deleteDescription}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{common.actions.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-primary-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="animate-spin" />}
+              {pendingDelete?.kind === "clearLocal" ? t.clearLocal : common.actions.delete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+function HistorySection({
+  icon: Icon,
+  title,
+  count,
+  hint,
+  actions,
+  rows,
+  openingId,
+  onOpen,
+  onDelete,
+}: {
+  icon: typeof Cloud
+  title: string
+  count: number
+  hint?: string
+  actions?: React.ReactNode
+  rows: HistoryRow[]
+  openingId: string | null
+  onOpen: (row: HistoryRow) => void
+  onDelete: (row: HistoryRow) => void
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-primary" />
+          <h2 className="text-sm font-bold text-foreground">{title}</h2>
+          <Badge variant="muted">{count}</Badge>
+          {hint && <span className="hidden text-xs text-muted-foreground md:inline">· {hint}</span>}
+        </div>
+        {actions && <div className="-ml-2 flex flex-wrap items-center gap-1 sm:ml-0">{actions}</div>}
       </div>
+      <ul className="space-y-3">
+        <AnimatePresence initial={false}>
+          {rows.map((row, i) => (
+            <motion.li
+              key={row.id}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease: EASE_OUT, delay: Math.min(i, 8) * 0.04 } }}
+              exit={{ opacity: 0, x: -24, transition: { duration: 0.25 } }}
+            >
+              <HistoryCard row={row} opening={openingId === row.id} onOpen={onOpen} onDelete={onDelete} />
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+    </section>
+  )
+}
+
+function HistoryCard({
+  row,
+  opening,
+  onOpen,
+  onDelete,
+}: {
+  row: HistoryRow
+  opening: boolean
+  onOpen: (row: HistoryRow) => void
+  onDelete: (row: HistoryRow) => void
+}) {
+  const t = useT(historyMessages)
+  const common = useT(commonMessages)
+  const f = useFormat()
+
+  const soilChips = [
+    { k: "N", v: row.soil.nitrogen },
+    { k: "P", v: row.soil.phosphorus },
+    { k: "K", v: row.soil.potassium },
+    { k: "pH", v: row.soil.ph },
+  ]
+
+  return (
+    <div className="surface-interactive p-4 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        {/* Date + soil values */}
+        <div className="min-w-0 space-y-2.5 lg:w-64 lg:shrink-0">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Calendar className="size-4 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{row.createdAt ? f.date(row.createdAt) : "—"}</span>
+            {row.isLocal ? (
+              <Badge variant="muted">
+                <HardDrive />
+                {t.localBadge}
+              </Badge>
+            ) : (
+              <Badge variant="info">
+                <Cloud />
+                {t.cloudBadge}
+              </Badge>
+            )}
+          </div>
+          {row.createdAt && (
+            <p className="text-xs text-muted-foreground">{f.relative(row.createdAt)}</p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {soilChips.map((c) => (
+              <span
+                key={c.k}
+                className="inline-flex items-baseline gap-1 rounded-md bg-muted px-2 py-1 text-xs"
+                title={c.k === "pH" ? common.nutrients.ph : common.units.mgPerKg}
+              >
+                <span className="font-semibold text-muted-foreground">{c.k}</span>
+                <span className="font-bold tabular-nums text-foreground">{c.v ?? "—"}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Top crops */}
+        <div className="min-w-0 flex-1 border-t border-border pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t.topCrops}</p>
+          {row.topCrops.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t.noCrops}</p>
+          ) : (
+            <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {row.topCrops.map((c, idx) => {
+                const score = Math.round(c.score ?? 0)
+                return (
+                  <li key={idx} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-muted/60 p-2">
+                    <CropIcon name={c.name} category={c.category} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        <span className="mr-1 text-muted-foreground">{idx + 1}.</span>
+                        {f.pick(c.nameTh, c.name) || "—"}
+                      </p>
+                      <span
+                        className={cn(
+                          "mt-0.5 inline-flex rounded-full border px-1.5 py-px text-[11px] font-semibold tabular-nums",
+                          TONE_BADGE[scoreTone(score)]
+                        )}
+                        title={c.level ? common.levels[c.level] ?? c.level : undefined}
+                      >
+                        {t.score(score)}
+                      </span>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
+          <Button variant="outline" className="h-10 flex-1 lg:flex-none" onClick={() => onOpen(row)} disabled={opening}>
+            {opening ? <Loader2 className="animate-spin" /> : null}
+            {opening ? t.opening : t.open}
+            {!opening && <ArrowRight />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground hover:bg-danger-soft hover:text-destructive lg:w-full"
+            onClick={() => onDelete(row)}
+            aria-label={t.delete}
+            title={t.delete}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HistorySkeleton() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-5 w-40 rounded-md" />
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="surface flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
+          <div className="space-y-2.5 lg:w-64">
+            <Skeleton className="h-5 w-40 rounded-md" />
+            <Skeleton className="h-3 w-20 rounded-md" />
+            <div className="flex gap-1.5">
+              {Array.from({ length: 4 }).map((__, j) => (
+                <Skeleton key={j} className="h-6 w-12 rounded-md" />
+              ))}
+            </div>
+          </div>
+          <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((__, j) => (
+              <Skeleton key={j} className="h-14 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-full rounded-full lg:w-32" />
+        </div>
+      ))}
     </div>
   )
 }

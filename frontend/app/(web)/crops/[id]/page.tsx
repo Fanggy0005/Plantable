@@ -1,31 +1,34 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
-import {
-  ArrowLeft,
-  Sprout,
-  Tag,
-  FlaskConical,
-  CheckCircle2,
-  Calendar,
-  Sparkles,
-  Loader2,
-} from "lucide-react"
+import { motion } from "motion/react"
+import { ArrowLeft, Coins, FlaskConical, Info, Leaf, Sprout, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
+import { CropIcon } from "@/components/shared/CropIcon"
+import { SectionHeading } from "@/components/shared/PageHeader"
+import { EmptyState } from "@/components/shared/States"
+import { EASE_OUT, FadeIn } from "@/components/motion"
 import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
 import { FertilizerScheduleCard } from "@/features/soil-improvement/components/FertilizerScheduleCard"
 import { SoilAmendmentCard } from "@/features/soil-improvement/components/SoilAmendmentCard"
 import { CropEconomicsCard } from "@/features/economics/components/CropEconomicsCard"
+import { cropCatalogMessages } from "@/features/crop/catalog-messages"
 import { fetchCropById, fetchSoilImprovement } from "@/lib/api"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
 import type { Crop, SoilImprovementPlan } from "@/types"
 
 export default function CropDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const id = params?.id as string
+  const t = useT(cropCatalogMessages).detail
+  const common = useT(commonMessages)
+  const { pick, locale } = useFormat()
 
   const [crop, setCrop] = useState<Crop | null>(null)
   const [loading, setLoading] = useState(true)
@@ -60,206 +63,255 @@ export default function CropDetailPage() {
     loadCrop()
   }, [id])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-7 w-7 animate-spin text-primary" />
-          <p className="text-xs">กำลังโหลดข้อมูลพืช...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <CropDetailSkeleton />
 
   if (error || !crop) {
     return (
-      <div className="mx-auto max-w-xl py-20 px-4 text-center space-y-4">
-        <h2 className="text-xl font-bold text-foreground">ไม่พบข้อมูลพืช</h2>
-        <p className="text-sm text-muted-foreground">
-          {error || "ไม่พบรหัสพืชที่ระบุในระบบ"}
-        </p>
-        <Link href="/crops">
-          <Button variant="outline">กลับสู่หน้ารายการพืช</Button>
-        </Link>
+      <div className="mx-auto max-w-xl px-4 py-16">
+        <EmptyState
+          icon={Sprout}
+          title={t.notFoundTitle}
+          description={t.notFoundDescription}
+          action={
+            <Button variant="outline" render={<Link href="/crops" />} nativeButton={false}>
+              <ArrowLeft />
+              {t.backToList}
+            </Button>
+          }
+        />
       </div>
     )
   }
 
   const req = crop.requirement
+  const displayName = pick(crop.nameTh, crop.name)
+  const secondaryName = locale === "th" ? crop.name : crop.nameTh
 
-  const handleTestThisCrop = () => {
-    if (!req) return
-    // Pre-fill optimal values in sessionStorage
-    router.push("/analyze")
-  }
+  const nutrients = req
+    ? [
+        { letter: "N", label: common.nutrients.nitrogen, min: req.nitrogenMin, max: req.nitrogenMax, optimal: req.nitrogenOptimal, color: "var(--chart-1)" },
+        { letter: "P", label: common.nutrients.phosphorus, min: req.phosphorusMin, max: req.phosphorusMax, optimal: req.phosphorusOptimal, color: "var(--chart-3)" },
+        { letter: "K", label: common.nutrients.potassium, min: req.potassiumMin, max: req.potassiumMax, optimal: req.potassiumOptimal, color: "var(--chart-4)" },
+      ]
+    : []
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-14 animate-fade-in-up space-y-8">
-      {/* Navigation Breadcrumb */}
-      <div>
-        <Link
-          href="/crops"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          ย้อนกลับไปฐานข้อมูลพืช
-        </Link>
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+      <Link
+        href="/crops"
+        className="inline-flex h-10 items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+      >
+        <ArrowLeft className="size-4" />
+        {t.back}
+      </Link>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-                {crop.nameTh}
-              </h1>
-              <span className="text-xl font-medium text-muted-foreground">
-                ({crop.name})
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60">
-                <Tag className="h-3 w-3" />
-                {crop.category}
-              </span>
-              <FavoriteButton cropId={crop.id} />
-            </div>
-
-            {crop.scientificName && (
-              <p className="text-sm italic text-muted-foreground font-mono">
-                ชื่อวิทยาศาสตร์: {crop.scientificName}
+      {/* Hero */}
+      <FadeIn immediate className="surface relative overflow-hidden p-5 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-dot-grid opacity-60 [mask-image:linear-gradient(to_left,black,transparent_70%)]" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4 sm:items-center sm:gap-5">
+            <motion.div
+              initial={{ scale: 0.8, rotate: -8, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+            >
+              <CropIcon name={crop.name} category={crop.category} size="xl" />
+            </motion.div>
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{common.categories[crop.category] ?? crop.category}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{displayName}</h1>
+                <FavoriteButton cropId={crop.id} />
+              </div>
+              <p className="text-sm text-muted-foreground sm:text-base">
+                {secondaryName}
+                {crop.scientificName && (
+                  <>
+                    <span className="mx-1.5">·</span>
+                    <span className="sr-only">{t.scientificName}: </span>
+                    <span className="italic">{crop.scientificName}</span>
+                  </>
+                )}
               </p>
-            )}
+            </div>
           </div>
 
-          <Link href="/analyze">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs">
-              <FlaskConical className="mr-1.5 h-4 w-4" />
-              ตรวจดินเพื่อปลูก {crop.nameTh}
-            </Button>
-          </Link>
+          <Button size="lg" className="h-11 w-full px-5 sm:w-auto" render={<Link href="/analyze" />} nativeButton={false}>
+            <FlaskConical />
+            {t.testSoil}
+          </Button>
         </div>
-      </div>
 
-      {/* Description */}
-      <div className="bg-card rounded-2xl p-6 border border-border/80 shadow-xs space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          ลักษณะและความต้องการทั่วไป
-        </h3>
-        <p className="text-sm text-foreground leading-relaxed">
-          {crop.description}
-        </p>
-      </div>
+        {crop.description && (
+          <div className="relative mt-6 flex gap-3 rounded-xl bg-muted/70 p-4">
+            <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">{t.overview}</p>
+              <p className="mt-1 text-sm leading-relaxed text-foreground">{crop.description}</p>
+            </div>
+          </div>
+        )}
+      </FadeIn>
 
-      {/* Agronomic Requirements Matrix */}
       {req && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-emerald-600" />
-              เกณฑ์ธาตุอาหารที่เหมาะสมที่สุด (Optimal Nutrient Requirements)
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              หน่วย: mg/kg (ppm) ในดิน
-            </span>
-          </div>
+        <section className="space-y-5">
+          <SectionHeading icon={Target} title={t.requirementsTitle} description={t.requirementsDescription} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Nitrogen */}
-            <div className="rounded-2xl border bg-card p-5 shadow-2xs space-y-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">
-                ไนโตรเจน (N)
-              </span>
-              <div className="text-2xl font-black text-foreground">
-                {req.nitrogenOptimal}{" "}
-                <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
-              </div>
-              <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between">
-                <span>ช่วงยอมรับได้:</span>
-                <span className="font-semibold text-foreground">
-                  {req.nitrogenMin} - {req.nitrogenMax}
-                </span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+            <FadeIn className="surface space-y-6 p-5 sm:p-6 lg:col-span-3">
+              {nutrients.map((n, i) => (
+                <RangeBar key={n.letter} {...n} delay={i * 0.1} optimalLabel={t.optimal} rangeLabel={t.range} unit={common.units.mgPerKg} />
+              ))}
+            </FadeIn>
 
-            {/* Phosphorus */}
-            <div className="rounded-2xl border bg-card p-5 shadow-2xs space-y-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">
-                ฟอสฟอรัส (P)
-              </span>
-              <div className="text-2xl font-black text-foreground">
-                {req.phosphorusOptimal}{" "}
-                <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
+            <FadeIn delay={0.1} className="flex flex-col gap-4 lg:col-span-2">
+              <div className="surface flex items-center justify-between p-5">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground">{t.phTitle}</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+                    {req.phMin}–{req.phMax}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-muted-foreground">{t.optimal}</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{req.phOptimal}</p>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between">
-                <span>ช่วงยอมรับได้:</span>
-                <span className="font-semibold text-foreground">
-                  {req.phosphorusMin} - {req.phosphorusMax}
-                </span>
-              </div>
-            </div>
-
-            {/* Potassium */}
-            <div className="rounded-2xl border bg-card p-5 shadow-2xs space-y-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">
-                โพแทสเซียม (K)
-              </span>
-              <div className="text-2xl font-black text-foreground">
-                {req.potassiumOptimal}{" "}
-                <span className="text-xs font-normal text-muted-foreground">mg/kg</span>
-              </div>
-              <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between">
-                <span>ช่วงยอมรับได้:</span>
-                <span className="font-semibold text-foreground">
-                  {req.potassiumMin} - {req.potassiumMax}
-                </span>
-              </div>
-            </div>
-
-            {/* pH */}
-            <div className="rounded-2xl border bg-card p-5 shadow-2xs space-y-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">
-                ความเป็นกรด-ด่าง (pH)
-              </span>
-              <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-                {req.phOptimal}
-              </div>
-              <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between">
-                <span>ช่วงยอมรับได้:</span>
-                <span className="font-semibold text-foreground">
-                  {req.phMin} - {req.phMax}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* pH Gauge Comparison for this crop */}
-          <PHScaleGauge
-            currentPh={req.phOptimal}
-            targetMin={req.phMin}
-            targetMax={req.phMax}
-            cropName={crop.nameTh}
-          />
-
-          {/* Targeted Fertilizer & Soil Management Guide (Phase 3) */}
-          {soilPlan && (
-            <div className="pt-6 border-t space-y-6">
-              <FertilizerScheduleCard
-                schedule={soilPlan.fertilizerRecommendations}
-                cropNameTh={crop.nameTh}
+              <PHScaleGauge
+                currentPh={req.phOptimal}
+                targetMin={req.phMin}
+                targetMax={req.phMax}
+                cropName={displayName}
               />
-              <SoilAmendmentCard
-                phCorrection={soilPlan.phCorrection}
-                organicAlternatives={soilPlan.organicAlternatives}
-              />
-            </div>
-          )}
+            </FadeIn>
+          </div>
+        </section>
+      )}
 
-          {/* Crop Economics & Return on Investment (Phase 4) */}
-          <div className="pt-6 border-t">
-            <CropEconomicsCard
-              cropId={crop.id}
-              cropNameTh={crop.nameTh}
+      {soilPlan && (
+        <section className="space-y-5">
+          <SectionHeading icon={Leaf} title={t.managementTitle} description={t.managementDescription} />
+          <FadeIn className="space-y-5">
+            <FertilizerScheduleCard schedule={soilPlan.fertilizerRecommendations} cropNameTh={displayName} />
+            <SoilAmendmentCard
+              phCorrection={soilPlan.phCorrection}
+              organicAlternatives={soilPlan.organicAlternatives}
             />
+          </FadeIn>
+        </section>
+      )}
+
+      {req && (
+        <section className="space-y-5">
+          <SectionHeading icon={Coins} title={t.economicsTitle} />
+          <FadeIn>
+            <CropEconomicsCard cropId={crop.id} cropNameTh={displayName} />
+          </FadeIn>
+        </section>
+      )}
+    </div>
+  )
+}
+
+/** Horizontal track showing the acceptable range as a band and the optimal value as a dot. */
+function RangeBar({
+  letter,
+  label,
+  min,
+  max,
+  optimal,
+  color,
+  delay,
+  optimalLabel,
+  rangeLabel,
+  unit,
+}: {
+  letter: string
+  label: string
+  min: number
+  max: number
+  optimal: number
+  color: string
+  delay: number
+  optimalLabel: string
+  rangeLabel: string
+  unit: string
+}) {
+  const scaleMax = Math.max(max * 1.25, 1)
+  const left = (min / scaleMax) * 100
+  const width = ((max - min) / scaleMax) * 100
+  const dot = (optimal / scaleMax) * 100
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex size-9 items-center justify-center rounded-lg text-sm font-bold text-primary-foreground"
+            style={{ backgroundColor: color }}
+          >
+            {letter}
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground">
+              {rangeLabel} {min}–{max} {unit}
+            </p>
           </div>
         </div>
-      )}
+        <div className="text-right">
+          <p className="text-[11px] font-medium text-muted-foreground">{optimalLabel}</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">{optimal}</p>
+        </div>
+      </div>
+
+      <div className="relative h-3 rounded-full bg-muted">
+        <motion.div
+          className="absolute inset-y-0 rounded-full"
+          style={{ left: `${left}%`, backgroundColor: `color-mix(in oklch, ${color} 28%, transparent)` }}
+          initial={{ width: 0 }}
+          whileInView={{ width: `${width}%` }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, ease: EASE_OUT, delay }}
+        />
+        <motion.div
+          className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card shadow-sm"
+          style={{ left: `${dot}%`, backgroundColor: color }}
+          initial={{ scale: 0 }}
+          whileInView={{ scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 400, damping: 18, delay: delay + 0.5 }}
+        />
+      </div>
+      <div className="flex justify-between text-[11px] tabular-nums text-muted-foreground">
+        <span>0</span>
+        <span>{Math.round(scaleMax)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CropDetailSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+      <Skeleton className="h-5 w-32 rounded-md" />
+      <div className="surface space-y-6 p-5 sm:p-8">
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-20 rounded-3xl" />
+          <div className="flex-1 space-y-2.5">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-9 w-48 rounded-lg" />
+            <Skeleton className="h-4 w-64 max-w-full rounded-md" />
+          </div>
+        </div>
+        <Skeleton className="h-20 w-full rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <Skeleton className="h-72 lg:col-span-3" />
+        <Skeleton className="h-72 lg:col-span-2" />
+      </div>
     </div>
   )
 }

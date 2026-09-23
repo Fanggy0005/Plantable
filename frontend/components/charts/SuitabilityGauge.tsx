@@ -1,84 +1,78 @@
 "use client"
 
+import { motion } from "motion/react"
+import { CountUp, EASE_OUT } from "@/components/motion"
+import { useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { levelFromScore, scoreTone, TONE_BADGE, TONE_COLOR } from "@/lib/score"
+import { cn } from "@/lib/utils"
+import { chartMessages } from "./messages"
+
 interface SuitabilityGaugeProps {
   score: number
   level?: string
   size?: number
   strokeWidth?: number
+  className?: string
 }
 
+/** Animated ring showing a 0–100 suitability score. */
 export function SuitabilityGauge({
   score,
   level,
   size = 110,
   strokeWidth = 9,
+  className,
 }: SuitabilityGaugeProps) {
+  const t = useT(chartMessages)
+  const common = useT(commonMessages)
+  const value = Math.max(0, Math.min(100, score))
+  const tone = scoreTone(value)
   const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-  const normalizedScore = Math.max(0, Math.min(100, score))
-  const strokeDashoffset = circumference - (normalizedScore / 100) * circumference
-
-  // Color selection based on score tiers
-  const getColor = (s: number) => {
-    if (s >= 90) return { stroke: "#059669", bg: "bg-emerald-50 text-emerald-800 border-emerald-200" } // Excellent
-    if (s >= 75) return { stroke: "#16a34a", bg: "bg-green-50 text-green-800 border-green-200" }     // Good
-    if (s >= 60) return { stroke: "#d97706", bg: "bg-amber-50 text-amber-800 border-amber-200" }     // Fair
-    if (s >= 40) return { stroke: "#ea580c", bg: "bg-orange-50 text-orange-800 border-orange-200" }   // Poor
-    return { stroke: "#dc2626", bg: "bg-rose-50 text-rose-800 border-rose-200" }                      // Not Recommended
-  }
-
-  const { stroke, bg } = getColor(normalizedScore)
-
-  const getLevelThai = (lvl?: string, s?: number) => {
-    const val = s ?? 0
-    if (lvl === "Excellent" || val >= 90) return "เหมาะสมดีเลิศ"
-    if (lvl === "Good" || val >= 75) return "เหมาะสมดี"
-    if (lvl === "Fair" || val >= 60) return "ปานกลาง"
-    if (lvl === "Poor" || val >= 40) return "ความเหมาะสมต่ำ"
-    return "ไม่แนะนำ"
-  }
+  const levelKey = level && common.levels[level] ? level : levelFromScore(value)
+  const compact = size < 96
 
   return (
-    <div className="flex flex-col items-center justify-center">
+    <div className={cn("flex flex-col items-center", className)}>
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="transform -rotate-90">
-          {/* Background circle */}
+        <svg width={size} height={size} className="-rotate-90" aria-hidden>
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="currentColor"
+            fill="none"
             strokeWidth={strokeWidth}
-            fill="transparent"
-            className="text-muted/40"
+            className="stroke-muted"
           />
-          {/* Animated score circle */}
-          <circle
+          <motion.circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={stroke}
+            fill="none"
+            stroke={TONE_COLOR[tone]}
             strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
-            fill="transparent"
-            style={{
-              transition: "stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: value / 100 }}
+            transition={{ duration: 1.1, ease: EASE_OUT }}
           />
         </svg>
-
-        {/* Center label */}
-        <div className="absolute flex flex-col items-center justify-center text-center">
-          <span className="text-2xl font-black tracking-tight text-foreground">{normalizedScore}</span>
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">คะแนน</span>
+        <div className="absolute flex flex-col items-center leading-none">
+          <CountUp
+            value={value}
+            className={cn("font-bold tracking-tight text-foreground", compact ? "text-xl" : "text-2xl")}
+          />
+          <span className="mt-1 text-[10px] font-semibold text-muted-foreground">{t.score}</span>
         </div>
       </div>
-
       {level && (
-        <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${bg}`}>
-          {getLevelThai(level, normalizedScore)}
+        <span
+          className={cn(
+            "mt-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+            TONE_BADGE[tone]
+          )}
+        >
+          {common.levels[levelKey]}
         </span>
       )}
     </div>

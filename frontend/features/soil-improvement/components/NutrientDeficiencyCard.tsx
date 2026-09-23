@@ -1,140 +1,192 @@
 "use client"
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Leaf,
-  Activity,
-} from "lucide-react"
-import type { NutrientDiagnostic, NutrientDeficiencyStatus } from "@/types"
+import { AlertCircle, AlertTriangle, ArrowUpCircle, CheckCircle2, type LucideIcon } from "lucide-react"
+import { motion } from "motion/react"
+import { Stagger, StaggerItem, EASE_OUT } from "@/components/motion"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { cn } from "@/lib/utils"
+import type { NutrientDeficiencyStatus, NutrientDiagnostic } from "@/types"
+import { soilImprovementMessages } from "../messages"
 
 interface NutrientDeficiencyCardProps {
   diagnostics: NutrientDiagnostic[]
 }
 
-function getStatusBadge(status: NutrientDeficiencyStatus, labelTh: string) {
-  switch (status) {
-    case "optimal":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-          {labelTh}
+type Tone = "danger" | "warning" | "success" | "info"
+
+export const STATUS_TONE: Record<NutrientDeficiencyStatus, Tone> = {
+  severe_deficiency: "danger",
+  mild_deficiency: "warning",
+  optimal: "success",
+  mild_excess: "info",
+  severe_excess: "info",
+}
+
+const TONE_STYLES: Record<Tone, { badge: string; marker: string; icon: LucideIcon; accent: string }> = {
+  danger: {
+    badge: "bg-danger-soft text-destructive border-destructive/20",
+    marker: "bg-destructive ring-destructive/25",
+    icon: AlertCircle,
+    accent: "before:bg-destructive",
+  },
+  warning: {
+    badge: "bg-warning-soft text-warning border-warning/25",
+    marker: "bg-warning ring-warning/25",
+    icon: AlertTriangle,
+    accent: "before:bg-warning",
+  },
+  success: {
+    badge: "bg-success-soft text-success border-success/20",
+    marker: "bg-success ring-success/25",
+    icon: CheckCircle2,
+    accent: "before:bg-success",
+  },
+  info: {
+    badge: "bg-info-soft text-info border-info/20",
+    marker: "bg-info ring-info/25",
+    icon: ArrowUpCircle,
+    accent: "before:bg-info",
+  },
+}
+
+/** Scale domain for the range bar: pH on its practical 3–10 scale, nutrients from 0 with headroom. */
+function scaleFor(item: NutrientDiagnostic) {
+  if (item.nutrient === "ph") return { lo: 3, hi: 10 }
+  const hi = Math.max(item.optimalRange.max * 1.6, item.currentValue * 1.15, 1)
+  return { lo: 0, hi }
+}
+
+function pct(value: number, lo: number, hi: number) {
+  return Math.min(100, Math.max(0, ((value - lo) / (hi - lo)) * 100))
+}
+
+function NutrientRangeBar({ item, tone }: { item: NutrientDiagnostic; tone: Tone }) {
+  const t = useT(soilImprovementMessages)
+  const { lo, hi } = scaleFor(item)
+  const minPct = pct(item.optimalRange.min, lo, hi)
+  const maxPct = pct(item.optimalRange.max, lo, hi)
+  const currentPct = pct(item.currentValue, lo, hi)
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative h-2.5 rounded-full bg-muted">
+        {/* Optimal band */}
+        <motion.div
+          className="absolute inset-y-0 rounded-full bg-success/25 ring-1 ring-success/30 ring-inset"
+          style={{ left: `${minPct}%`, width: `${Math.max(maxPct - minPct, 2)}%` }}
+          initial={{ opacity: 0, scaleX: 0.6 }}
+          whileInView={{ opacity: 1, scaleX: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease: EASE_OUT }}
+        />
+        {/* Current value marker */}
+        <motion.div
+          className={cn(
+            "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card shadow-sm ring-4",
+            TONE_STYLES[tone].marker
+          )}
+          initial={{ left: "0%", opacity: 0 }}
+          whileInView={{ left: `${currentPct}%`, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.15 }}
+        />
+      </div>
+      <div className="relative h-4 text-[11px] text-muted-foreground">
+        <span className="absolute left-0">{t.diagnostics.low}</span>
+        <span
+          className="absolute -translate-x-1/2 font-medium whitespace-nowrap text-success"
+          style={{ left: `${Math.min(Math.max((minPct + maxPct) / 2, 22), 78)}%` }}
+        >
+          {item.optimalRange.min}–{item.optimalRange.max}
         </span>
-      )
-    case "mild_deficiency":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-          {labelTh}
-        </span>
-      )
-    case "severe_deficiency":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          <AlertCircle className="h-3.5 w-3.5 text-rose-600" />
-          {labelTh}
-        </span>
-      )
-    case "mild_excess":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-          <Activity className="h-3.5 w-3.5 text-blue-600" />
-          {labelTh}
-        </span>
-      )
-    case "severe_excess":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-          <AlertCircle className="h-3.5 w-3.5 text-purple-600" />
-          {labelTh}
-        </span>
-      )
-    default:
-      return null
-  }
+        <span className="absolute right-0">{t.diagnostics.high}</span>
+      </div>
+    </div>
+  )
 }
 
 export function NutrientDeficiencyCard({ diagnostics }: NutrientDeficiencyCardProps) {
+  const t = useT(soilImprovementMessages)
+  const common = useT(commonMessages)
+  const { locale } = useFormat()
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {diagnostics.map((item) => {
-          const isPh = item.nutrient === "ph"
-          const unit = isPh ? "" : "mg/kg"
-          const min = item.optimalRange.min
-          const max = item.optimalRange.max
-          const optimal = item.optimalRange.optimal
+    <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {diagnostics.map((item) => {
+        const tone = STATUS_TONE[item.status] ?? "info"
+        const styles = TONE_STYLES[tone]
+        const StatusIcon = styles.icon
+        const isPh = item.nutrient === "ph"
+        const unit = isPh ? "" : common.units.mgPerKg
+        const statusLabel = locale === "th" ? item.statusLabelTh || t.status[item.status] : t.status[item.status]
+        const name = common.nutrients[item.nutrient] ?? item.name
 
-          // Calculate percentage for visual gauge
-          const rangeSpan = Math.max(max * 1.5, 1)
-          const pct = Math.min(Math.max((item.currentValue / rangeSpan) * 100, 5), 100)
-
-          return (
-            <div
-              key={item.nutrient}
-              className="rounded-2xl bg-card border p-5 shadow-2xs hover:border-emerald-500/50 transition-all flex flex-col justify-between space-y-4"
-            >
-              {/* Header */}
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <h4 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Leaf className="h-4 w-4 text-emerald-600" />
-                      {item.nameTh} ({item.name})
-                    </h4>
-                    <span className="text-xs text-muted-foreground">
-                      ช่วงเหมาะสม: {min} - {max} {unit} (เหมาะสมที่สุด: {optimal} {unit})
+        return (
+          <StaggerItem
+            key={item.nutrient}
+            className={cn(
+              "surface-interactive relative flex flex-col gap-4 overflow-hidden p-5",
+              "before:absolute before:inset-y-0 before:left-0 before:w-1",
+              styles.accent
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1.5">
+                <h4 className="text-base font-bold text-foreground">
+                  {name}
+                  {!isPh && (
+                    <span className="ml-1.5 text-sm font-medium text-muted-foreground">
+                      ({item.nutrient === "nitrogen" ? "N" : item.nutrient === "phosphorus" ? "P" : "K"})
                     </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xl font-extrabold text-foreground font-mono">
-                      {item.currentValue}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground ml-1">{unit}</span>
-                  </div>
-                </div>
-
-                <div className="mt-1">{getStatusBadge(item.status, item.statusLabelTh)}</div>
+                  )}
+                </h4>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                    styles.badge
+                  )}
+                >
+                  <StatusIcon className="size-3.5" />
+                  {statusLabel}
+                </span>
               </div>
-
-              {/* Visual Scale Bar */}
-              <div className="space-y-1">
-                <div className="w-full bg-muted rounded-full h-2 overflow-hidden flex">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      item.status === "optimal"
-                        ? "bg-emerald-500"
-                        : item.status.includes("deficiency")
-                        ? "bg-amber-500"
-                        : "bg-blue-500"
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>ต่ำ</span>
-                  <span>ช่วงเป้าหมาย ({min}-{max})</span>
-                  <span>สูง</span>
-                </div>
-              </div>
-
-              {/* Symptoms & Agronomic Impact */}
-              <div className="space-y-2 pt-3 border-t text-xs">
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <span className="font-bold text-foreground shrink-0 mt-0.5">อาการที่ใบ/พืช:</span>
-                  <span className="leading-relaxed">{item.symptomsTh}</span>
-                </div>
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <span className="font-bold text-foreground shrink-0 mt-0.5">ผลกระทบ:</span>
-                  <span className="leading-relaxed">{item.impactTh}</span>
-                </div>
+              <div className="shrink-0 text-right">
+                <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
+                  {item.currentValue}
+                </p>
+                {unit && <p className="text-[11px] font-medium text-muted-foreground">{unit}</p>}
               </div>
             </div>
-          )
-        })}
-      </div>
-    </div>
+
+            <NutrientRangeBar item={item} tone={tone} />
+
+            <p className="text-xs text-muted-foreground">
+              {t.diagnostics.optimum}:{" "}
+              <span className="font-semibold text-foreground">
+                {item.optimalRange.optimal} {unit}
+              </span>
+            </p>
+
+            {(item.symptomsTh || item.impactTh) && (
+              <dl className="mt-auto space-y-2 border-t border-border pt-3 text-xs leading-relaxed">
+                {item.symptomsTh && (
+                  <div>
+                    <dt className="font-semibold text-foreground">{t.diagnostics.symptoms}</dt>
+                    <dd className="text-muted-foreground">{item.symptomsTh}</dd>
+                  </div>
+                )}
+                {item.impactTh && (
+                  <div>
+                    <dt className="font-semibold text-foreground">{t.diagnostics.impact}</dt>
+                    <dd className="text-muted-foreground">{item.impactTh}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+          </StaggerItem>
+        )
+      })}
+    </Stagger>
   )
 }

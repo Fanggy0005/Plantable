@@ -2,185 +2,264 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Search, Sprout, Tag, ArrowRight, BookOpen, Loader2 } from "lucide-react"
+import { motion } from "motion/react"
+import { ArrowRight, BookOpen, Search, SearchX, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { EmptyState, ErrorState } from "@/components/shared/States"
+import { CropIcon } from "@/components/shared/CropIcon"
+import { Stagger, StaggerItem } from "@/components/motion"
 import { fetchCrops } from "@/lib/api"
+import { useFormat, useT } from "@/lib/i18n"
+import { commonMessages } from "@/lib/i18n/messages/common"
+import { cropCatalogMessages } from "@/features/crop/catalog-messages"
+import { cn } from "@/lib/utils"
 import type { Crop } from "@/types"
 
+const CATEGORIES = ["All", "Grain", "Cash Crop", "Fruit", "Vegetable"]
+
 export default function CropsCatalogPage() {
+  const t = useT(cropCatalogMessages).list
+  const common = useT(commonMessages)
+
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("All")
+  const [reloadKey, setReloadKey] = useState(0)
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function loadCrops() {
       setLoading(true)
+      setError(false)
       try {
         const data = await fetchCrops({
           search: search || undefined,
           category: category !== "All" ? category : undefined,
         })
-        setCrops(data)
+        if (!cancelled) setCrops(data)
       } catch (err) {
         console.error("Failed to fetch crops", err)
+        if (!cancelled) setError(true)
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setHasLoaded(true)
+        }
       }
     }
 
-    const timeout = setTimeout(loadCrops, 200)
-    return () => clearTimeout(timeout)
-  }, [search, category])
+    const timeout = setTimeout(loadCrops, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [search, category, reloadKey])
 
-  const categories = ["All", "Grain", "Cash Crop", "Fruit", "Vegetable"]
+  const clearFilters = () => {
+    setSearch("")
+    setCategory("All")
+  }
 
   return (
-    <div className="w-full bg-background bg-subtle-grid min-h-[calc(100vh-4rem)]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-14 animate-fade-in space-y-8">
-        {/* Header */}
-        <div className="space-y-2.5">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-bold text-emerald-900 shadow-xs">
-            <BookOpen className="h-3.5 w-3.5 text-emerald-700" />
-            <span>CROPS REPOSITORY & NUTRITION DATABASE</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-            สารบบพืชและเกณฑ์ความต้องการธาตุอาหาร
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
-            รวบรวมเกณฑ์ความต้องการธาตุอาหาร ไนโตรเจน (N), ฟอสฟอรัส (P), โพแทสเซียม (K) และค่าความเป็นกรด-ด่าง (pH) ที่เหมาะสมที่สุดของพืชเศรษฐกิจสำคัญ 12 ชนิด
-          </p>
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+      <PageHeader
+        eyebrow={t.eyebrow}
+        icon={BookOpen}
+        title={t.title}
+        description={t.description}
+      />
+
+      {/* Search & category filter */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.searchPlaceholder}
+            aria-label={t.searchLabel}
+            className="h-11 rounded-xl border-border bg-card pr-10 pl-10 shadow-(--shadow-card)"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label={common.actions.close}
+              className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
 
-        {/* Search & Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาชื่อพืช เช่น ข้าว, ข้าวโพด, ทุเรียน..."
-              className="pl-10 h-11 bg-card border-emerald-950/10 focus-visible:ring-emerald-700/20 focus-visible:border-emerald-700 rounded-xl"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {categories.map((cat) => {
-              const isActive = category === cat
+        <div
+          role="radiogroup"
+          aria-label={t.filterLabel}
+          className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:pb-0"
+        >
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-(--shadow-card)">
+            {CATEGORIES.map((cat) => {
+              const active = category === cat
               return (
                 <button
                   key={cat}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
                   onClick={() => setCategory(cat)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? "bg-primary text-white shadow-xs font-bold"
-                      : "bg-card border border-emerald-950/10 hover:border-emerald-700/40 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={cn(
+                    "relative h-9 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors",
+                    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  {cat === "All" ? "ทุกหมวดหมู่" : cat}
+                  {active && (
+                    <motion.span
+                      layoutId="crop-category-pill"
+                      className="absolute inset-0 rounded-full bg-primary"
+                      transition={{ type: "spring", stiffness: 480, damping: 36 }}
+                    />
+                  )}
+                  <span className="relative">{common.categories[cat] ?? cat}</span>
                 </button>
               )
             })}
           </div>
         </div>
+      </div>
 
-        {/* Crops Grid */}
-        {loading ? (
-          <div className="flex min-h-[300px] items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-              <p className="text-xs font-semibold">กำลังโหลดข้อมูลพืช...</p>
+      {/* Results */}
+      {!hasLoaded ? (
+        <CropGridSkeleton />
+      ) : error ? (
+        <ErrorState title={t.loadError} onRetry={() => setReloadKey((k) => k + 1)} />
+      ) : crops.length === 0 ? (
+        <EmptyState
+          icon={SearchX}
+          title={t.emptyTitle}
+          description={t.emptyDescription}
+          action={
+            <Button variant="outline" onClick={clearFilters}>
+              {t.clearFilters}
+            </Button>
+          }
+        />
+      ) : (
+        <div className={cn("space-y-4 transition-opacity duration-200", loading && "opacity-60")} aria-busy={loading}>
+          <p className="text-sm text-muted-foreground">{t.resultCount(crops.length)}</p>
+          <Stagger
+            immediate
+            key={crops.map((c) => c.id).join(",")}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5"
+          >
+            {crops.map((crop) => (
+              <StaggerItem key={crop.id} className="h-full">
+                <CropCard crop={crop} />
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CropCard({ crop }: { crop: Crop }) {
+  const t = useT(cropCatalogMessages).list
+  const common = useT(commonMessages)
+  const { pick, locale } = useFormat()
+  const req = crop.requirement
+  const secondaryName = locale === "th" ? crop.name : crop.nameTh
+
+  const chips = req
+    ? [
+        { key: "N", label: common.nutrients.nitrogen, optimal: req.nitrogenOptimal, min: req.nitrogenMin, max: req.nitrogenMax },
+        { key: "P", label: common.nutrients.phosphorus, optimal: req.phosphorusOptimal, min: req.phosphorusMin, max: req.phosphorusMax },
+        { key: "K", label: common.nutrients.potassium, optimal: req.potassiumOptimal, min: req.potassiumMin, max: req.potassiumMax },
+        { key: "pH", label: common.nutrients.ph, optimal: req.phOptimal, min: req.phMin, max: req.phMax },
+      ]
+    : []
+
+  return (
+    <Link
+      href={`/crops/${crop.id}`}
+      className="surface-interactive group flex h-full flex-col p-5 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+    >
+      <div className="flex items-start gap-3.5">
+        <CropIcon name={crop.name} category={crop.category} size="lg" className="transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-3" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+              {pick(crop.nameTh, crop.name)}
+            </h3>
+            <Badge variant="secondary" className="shrink-0">
+              {common.categories[crop.category] ?? crop.category}
+            </Badge>
+          </div>
+          <p className="truncate text-sm text-muted-foreground">
+            {secondaryName}
+            {crop.scientificName && (
+              <span className="italic"> · {crop.scientificName}</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {crop.description && (
+        <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{crop.description}</p>
+      )}
+
+      {chips.length > 0 && (
+        <div className="mt-4 grid grid-cols-4 gap-1.5 border-t border-border pt-4">
+          {chips.map((c) => (
+            <div key={c.key} title={`${c.label}: ${c.min}–${c.max}`} className="rounded-lg bg-muted px-2 py-1.5 text-center">
+              <span className="block text-[11px] font-semibold text-muted-foreground">{c.key}</span>
+              <span className="block text-sm font-bold tabular-nums text-foreground">{c.optimal}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-auto flex items-center justify-between pt-4 text-sm font-semibold text-primary">
+        <span className="text-xs font-medium text-muted-foreground">
+          {t.optimal} · {common.units.mgPerKg}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          {t.viewGuide}
+          <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+function CropGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="surface space-y-4 p-5">
+          <div className="flex items-start gap-3.5">
+            <Skeleton className="size-14 rounded-2xl" />
+            <div className="flex-1 space-y-2 pt-1">
+              <Skeleton className="h-5 w-2/3 rounded-md" />
+              <Skeleton className="h-4 w-1/2 rounded-md" />
             </div>
           </div>
-        ) : crops.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-2xl border border-dashed border-emerald-950/20 text-muted-foreground">
-            <Sprout className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="font-semibold text-sm">ไม่พบพืชที่ตรงกับคำค้นหา</p>
-            <p className="text-xs mt-1">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น</p>
+          <Skeleton className="h-4 w-full rounded-md" />
+          <Skeleton className="h-4 w-4/5 rounded-md" />
+          <div className="grid grid-cols-4 gap-1.5 pt-2">
+            {Array.from({ length: 4 }).map((__, j) => (
+              <Skeleton key={j} className="h-12 rounded-lg" />
+            ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {crops.map((crop) => {
-              const req = crop.requirement
-              return (
-                <div
-                  key={crop.id}
-                  className="bento-card p-6 flex flex-col justify-between hover-lift group"
-                >
-                  <div className="space-y-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-xl font-bold text-foreground group-hover:text-emerald-800 transition-colors tracking-tight">
-                          {crop.nameTh}
-                        </h3>
-                        <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                          {crop.name}
-                        </p>
-                      </div>
-
-                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200/70">
-                        <Tag className="h-3 w-3 text-emerald-700" />
-                        {crop.category}
-                      </span>
-                    </div>
-
-                    {crop.scientificName && (
-                      <p className="text-xs italic text-muted-foreground font-mono">
-                        {crop.scientificName}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                      {crop.description}
-                    </p>
-
-                    {/* Requirements Snapshot */}
-                    {req && (
-                      <div className="pt-3 border-t border-emerald-950/10 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                        <div className="rounded-xl bg-muted/40 border border-emerald-950/5 p-2.5">
-                          <span className="block text-[10px] uppercase font-bold text-foreground">
-                            N ไนโตรเจน
-                          </span>
-                          <span className="font-mono">{req.nitrogenMin}-{req.nitrogenMax} mg/kg</span>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 border border-emerald-950/5 p-2.5">
-                          <span className="block text-[10px] uppercase font-bold text-foreground">
-                            P ฟอสฟอรัส
-                          </span>
-                          <span className="font-mono">{req.phosphorusMin}-{req.phosphorusMax} mg/kg</span>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 border border-emerald-950/5 p-2.5">
-                          <span className="block text-[10px] uppercase font-bold text-foreground">
-                            K โพแทสเซียม
-                          </span>
-                          <span className="font-mono">{req.potassiumMin}-{req.potassiumMax} mg/kg</span>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 border border-emerald-950/5 p-2.5">
-                          <span className="block text-[10px] uppercase font-bold text-foreground">
-                            pH ที่เหมาะสม
-                          </span>
-                          <span className="font-semibold text-emerald-800 font-mono">
-                            {req.phMin} - {req.phMax}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-emerald-950/10">
-                    <Link href={`/crops/${crop.id}`} className="w-full block">
-                      <button className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-50/70 hover:bg-primary text-xs font-bold text-emerald-900 hover:text-white transition-all">
-                        ดูคู่มือการปลูกฉบับเต็ม
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
