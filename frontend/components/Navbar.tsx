@@ -40,11 +40,35 @@ import {
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 import { layoutMessages } from "@/components/layout/messages"
 import { authClient } from "@/lib/auth-client"
-import { useT } from "@/lib/i18n"
+import { LOCALES, useLocale, useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
+
+type LayoutMessages = (typeof layoutMessages)["th"]
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+/**
+ * Renders every translation stacked in one grid cell, showing only the active one,
+ * so the label always takes the width of its longest translation and switching
+ * language doesn't shift the surrounding layout.
+ */
+function StableLabel({ pick, className }: { pick: (m: LayoutMessages) => string; className?: string }) {
+  const { locale } = useLocale()
+  return (
+    <span className={cn("inline-grid justify-items-center", className)}>
+      {LOCALES.map((l) => (
+        <span
+          key={l}
+          aria-hidden={l !== locale}
+          className={cn("col-start-1 row-start-1 whitespace-nowrap", l !== locale && "invisible")}
+        >
+          {pick(layoutMessages[l])}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 function Brand({ onClick }: { onClick?: () => void }) {
@@ -80,10 +104,10 @@ export function Navbar() {
   const user = session?.user
 
   const navItems = [
-    { href: "/analyze", label: t.nav.analyze, icon: TestTube2 },
-    { href: "/crops", label: t.nav.crops, icon: BookOpen },
-    { href: "/history", label: t.nav.history, icon: History },
-    { href: "/analytics", label: t.nav.analytics, icon: BarChart3 },
+    { href: "/analyze", label: t.nav.analyze, pick: (m: LayoutMessages) => m.nav.analyze, icon: TestTube2 },
+    { href: "/crops", label: t.nav.crops, pick: (m: LayoutMessages) => m.nav.crops, icon: BookOpen },
+    { href: "/history", label: t.nav.history, pick: (m: LayoutMessages) => m.nav.history, icon: History },
+    { href: "/analytics", label: t.nav.analytics, pick: (m: LayoutMessages) => m.nav.analytics, icon: BarChart3 },
   ]
 
   const handleSignOut = async () => {
@@ -100,7 +124,7 @@ export function Navbar() {
         <Brand />
 
         {/* Desktop navigation */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden auto-cols-fr grid-flow-col items-center gap-1 md:grid">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href)
             return (
@@ -108,7 +132,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                  "relative flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
                   active ? "text-forest-foreground" : "text-forest-muted hover:text-forest-foreground"
                 )}
               >
@@ -120,7 +144,7 @@ export function Navbar() {
                   />
                 )}
                 <item.icon className={cn("relative size-4", active && "text-forest-accent")} />
-                <span className="relative">{item.label}</span>
+                <StableLabel pick={item.pick} className="relative" />
               </Link>
             )
           })}
@@ -130,7 +154,7 @@ export function Navbar() {
           <LanguageSwitcher />
 
           {/* Desktop account */}
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden auto-cols-fr grid-flow-col items-center gap-2 md:grid">
             {isPending ? (
               <div className="size-9 animate-pulse rounded-full bg-forest-elevated" />
             ) : user ? (
@@ -174,7 +198,7 @@ export function Navbar() {
                   nativeButton={false}
                   className="text-forest-muted hover:bg-forest-elevated hover:text-forest-foreground"
                 >
-                  {t.account.login}
+                  <StableLabel pick={(m) => m.account.login} />
                 </Button>
                 <Button
                   size="sm"
@@ -182,7 +206,7 @@ export function Navbar() {
                   nativeButton={false}
                   className="bg-forest-accent font-semibold text-forest hover:bg-forest-accent/90"
                 >
-                  {t.account.register}
+                  <StableLabel pick={(m) => m.account.register} />
                 </Button>
               </>
             )}
