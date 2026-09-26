@@ -102,7 +102,7 @@ export default function CropsCatalogPage() {
         <div
           role="radiogroup"
           aria-label={t.filterLabel}
-          className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:pb-0"
+          className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:px-0 lg:pb-0"
         >
           <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-(--shadow-card)">
             {CATEGORIES.map((cat) => {

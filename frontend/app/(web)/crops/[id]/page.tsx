@@ -54,8 +54,8 @@ export default function CropDetailPage() {
           )
           setSoilPlan(plan)
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to load crop details")
+      } catch (err) {
+        setError(err instanceof Error && err.message ? err.message : "Failed to load crop details")
       } finally {
         setLoading(false)
       }
@@ -107,7 +107,7 @@ export default function CropDetailPage() {
 
       {/* Hero */}
       <FadeIn immediate className="surface relative overflow-hidden p-5 sm:p-8">
-        <div className="pointer-events-none absolute inset-0 bg-dot-grid opacity-60 [mask-image:linear-gradient(to_left,black,transparent_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-dot-grid opacity-60 mask-[linear-gradient(to_left,black,transparent_70%)]" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4 sm:items-center sm:gap-5">
             <motion.div

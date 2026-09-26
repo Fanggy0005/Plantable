@@ -63,38 +63,37 @@ export function CropEconomicsCard({
   const [landArea, setLandArea] = useState<number>(initialAreaRai)
   const [areaInput, setAreaInput] = useState<string>(String(initialAreaRai))
   const [economics, setEconomics] = useState<CropEconomics | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadEconomics = async (area: number) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await calculateCropEconomics({
-        cropId,
-        landAreaRai: area,
-        soil,
-      })
-      setEconomics(data)
-    } catch {
-      // Fallback to fetchCropEconomics without soil if calculate fails
-      try {
-        const fallback = await fetchCropEconomics(cropId, area)
-        setEconomics(fallback)
-      } catch (err) {
-        setError(err instanceof Error && err.message ? err.message : t.error)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [error, setError] = useState<Error | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  // Loading is derived: true until the request for the current inputs has settled
+  const requestKey = `${cropId}:${landArea}:${reloadKey}`
+  const [settledKey, setSettledKey] = useState<string | null>(null)
+  const loading = settledKey !== requestKey
 
   // Debounced so typing "12" doesn't fire a request for "1" first
   useEffect(() => {
-    const id = setTimeout(() => loadEconomics(landArea), 250)
-    return () => clearTimeout(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropId, landArea])
+    let cancelled = false
+    const timer = setTimeout(() => {
+      calculateCropEconomics({ cropId, landAreaRai: landArea, soil })
+        // Fall back to the soil-independent estimate if the calculation fails
+        .catch(() => fetchCropEconomics(cropId, landArea))
+        .then((data) => {
+          if (cancelled) return
+          setEconomics(data)
+          setError(null)
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)))
+        })
+        .finally(() => {
+          if (!cancelled) setSettledKey(requestKey)
+        })
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [requestKey, cropId, landArea, soil])
 
   const handleAreaChange = (val: number) => {
     if (val >= MIN_AREA && val <= MAX_AREA) {
@@ -198,7 +197,7 @@ export function CropEconomicsCard({
         {loading && !economics ? (
           <EconomicsSkeleton />
         ) : error && !economics ? (
-          <ErrorState title={t.error} description={error} onRetry={() => loadEconomics(landArea)} />
+          <ErrorState title={t.error} description={error.message || undefined} onRetry={() => setReloadKey((k) => k + 1)} />
         ) : economics ? (
           <div className={cn("space-y-6 transition-opacity", loading && "opacity-60")}>
             {/* KPIs */}
@@ -282,7 +281,7 @@ export function CropEconomicsCard({
             {/* Cost breakdown */}
             {economics.costBreakdown.length > 0 && (
               <FadeIn className="grid grid-cols-1 items-center gap-6 rounded-2xl border border-border p-4 sm:p-5 md:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="relative mx-auto size-[200px] sm:size-[220px]">
+                <div className="relative mx-auto size-50 sm:size-55">
                   <ChartContainer config={chartConfig} className="aspect-square size-full">
                     <PieChart>
                       <ChartTooltip
@@ -417,7 +416,7 @@ function EconomicsSkeleton() {
         ))}
       </div>
       <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
-        <Skeleton className="mx-auto size-[200px] rounded-full" />
+        <Skeleton className="mx-auto size-50 rounded-full" />
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-6 rounded-lg" />

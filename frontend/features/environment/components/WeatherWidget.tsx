@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useEffectEvent, useState } from "react"
 import {
   AlertTriangle,
   CheckCircle2,
@@ -96,28 +96,43 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
   const [selectedProvince, setSelectedProvince] = useState(initialProvince)
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const loadWeather = async (provKey: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await fetchWeather(provKey)
-      setWeather(data)
-      if (onLocationChange) {
-        onLocationChange(data.province, data.region)
-      }
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t.loadError)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Parent callback: always call the latest one without refetching when its identity changes
+  const notifyLocationChange = useEffectEvent((data: WeatherData) => {
+    onLocationChange?.(data.province, data.region)
+  })
 
   useEffect(() => {
-    loadWeather(selectedProvince)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProvince])
+    let cancelled = false
+    fetchWeather(selectedProvince)
+      .then((data) => {
+        if (cancelled) return
+        setWeather(data)
+        setError(null)
+        notifyLocationChange(data)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedProvince, reloadKey])
+
+  const reload = () => {
+    setLoading(true)
+    setReloadKey((k) => k + 1)
+  }
+
+  const changeProvince = (province: string) => {
+    setLoading(true)
+    setSelectedProvince(province)
+  }
 
   const provinceKeys = PROVINCE_KEYS.includes(selectedProvince)
     ? PROVINCE_KEYS
@@ -144,7 +159,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
           <Select
             items={provinceItems}
             value={selectedProvince}
-            onValueChange={(v) => v && setSelectedProvince(v as string)}
+            onValueChange={(v) => v && changeProvince(v as string)}
           >
             <SelectTrigger aria-label={t.province} className="h-10 min-w-0 flex-1 border-border bg-card sm:w-52 sm:flex-none">
               <MapPin className="text-muted-foreground" />
@@ -167,7 +182,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                   size="icon"
                   className="size-10"
                   aria-label={t.refresh}
-                  onClick={() => loadWeather(selectedProvince)}
+                  onClick={reload}
                 />
               }
             >
@@ -194,7 +209,7 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
             </div>
           </div>
         ) : error && !weather ? (
-          <ErrorState title={t.loadError} description={error} onRetry={() => loadWeather(selectedProvince)} />
+          <ErrorState title={t.loadError} description={error.message || undefined} onRetry={reload} />
         ) : weather ? (
           <div className={cn("space-y-5 transition-opacity", loading && "opacity-60")}>
             <Stagger immediate className="grid grid-cols-2 gap-3 lg:grid-cols-4">

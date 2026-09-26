@@ -8,23 +8,19 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
-  CheckCircle2,
   FlaskConical,
   Lightbulb,
   Loader2,
   NotebookPen,
-  ScanLine,
   Sparkles,
   Sprout,
   Sun,
   Waves,
-  X,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EASE_OUT } from "@/components/motion"
 import { recommendPlants } from "@/lib/api"
 import { useT } from "@/lib/i18n"
@@ -33,7 +29,6 @@ import { cn } from "@/lib/utils"
 import { RegionalSeasonPicker } from "@/features/environment/components/RegionalSeasonPicker"
 import { HEALTHY_RANGES, soilAnalysisMessages } from "../messages"
 import { NutrientField, PhField } from "./NutrientField"
-import { SoilReportScanner } from "./SoilReportScanner"
 
 interface SoilPreset {
   id: string
@@ -51,54 +46,28 @@ const PRESETS: SoilPreset[] = [
   { id: "acidic", icon: FlaskConical, nitrogen: 50, phosphorus: 20, potassium: 40, ph: 4.2 },
 ]
 
-type TabKey = "manual" | "ocr"
-
 export function SoilInputForm() {
   const router = useRouter()
   const t = useT(soilAnalysisMessages)
   const c = useT(commonMessages)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabKey>("manual")
-  const [autoFillSuccess, setAutoFillSuccess] = useState(false)
   const [activePreset, setActivePreset] = useState<string | null>(null)
 
   const [form, setForm] = useState({
-    nitrogen: "120",
-    phosphorus: "45",
-    potassium: "50",
-    ph: "6.2",
+    nitrogen: "",
+    phosphorus: "",
+    potassium: "",
+    ph: "",
     province: "nakhon_ratchasima",
     season: "rainy",
     notes: "",
   })
 
-  const handleOcrAutoFill = (data: {
-    nitrogen: number
-    phosphorus: number
-    potassium: number
-    ph: number
-    notes?: string
-  }) => {
-    setForm((prev) => ({
-      ...prev,
-      nitrogen: data.nitrogen.toString(),
-      phosphorus: data.phosphorus.toString(),
-      potassium: data.potassium.toString(),
-      ph: data.ph.toString(),
-      notes: data.notes || t.form.ocrNote,
-    }))
-    setActivePreset(null)
-    setActiveTab("manual")
-    setAutoFillSuccess(true)
-    if (error) setError(null)
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
     if (e.target.name !== "notes") setActivePreset(null)
     if (error) setError(null)
-    if (autoFillSuccess) setAutoFillSuccess(false)
   }
 
   const applyPreset = (preset: SoilPreset) => {
@@ -112,9 +81,7 @@ export function SoilInputForm() {
       notes: t.form.presetNote(name),
     }))
     setActivePreset(preset.id)
-    setActiveTab("manual")
     if (error) setError(null)
-    if (autoFillSuccess) setAutoFillSuccess(false)
     toast.success(t.form.presetApplied(name))
   }
 
@@ -171,236 +138,154 @@ export function SoilInputForm() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="min-w-0">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="gap-5">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-muted p-1 ring-1 ring-border">
-            {(
-              [
-                { key: "manual", icon: FlaskConical, label: t.tabs.manual, hint: t.tabs.manualHint },
-                { key: "ocr", icon: ScanLine, label: t.tabs.ocr, hint: t.tabs.ocrHint },
-              ] as const
-            ).map((tab) => {
-              const active = activeTab === tab.key
-              return (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  className="h-auto min-h-12 justify-start gap-3 rounded-xl px-3 py-2.5 data-active:bg-transparent sm:px-4"
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE_OUT }}
+          className="space-y-5"
+        >
+          <div className="lg:hidden">{presetPicker}</div>
+
+          <form onSubmit={handleSubmit} className="surface space-y-6 p-5 sm:p-7">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                <FlaskConical className="size-5" />
+              </span>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-foreground">{t.form.title}</h2>
+                <p className="text-sm text-muted-foreground">{t.form.description}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
+              <NutrientField
+                id="nitrogen"
+                symbol="N"
+                label={c.nutrients.nitrogen}
+                hint={t.form.hints.nitrogen}
+                reportLabel={t.form.reportLabels.nitrogen}
+                unit={c.units.mgPerKg}
+                value={form.nitrogen}
+                onChange={handleChange}
+                placeholder={t.form.placeholder(HEALTHY_RANGES.nitrogen.min, HEALTHY_RANGES.nitrogen.max)}
+                range={HEALTHY_RANGES.nitrogen}
+              />
+              <NutrientField
+                id="phosphorus"
+                symbol="P"
+                label={c.nutrients.phosphorus}
+                hint={t.form.hints.phosphorus}
+                reportLabel={t.form.reportLabels.phosphorus}
+                unit={c.units.mgPerKg}
+                value={form.phosphorus}
+                onChange={handleChange}
+                placeholder={t.form.placeholder(HEALTHY_RANGES.phosphorus.min, HEALTHY_RANGES.phosphorus.max)}
+                range={HEALTHY_RANGES.phosphorus}
+              />
+              <NutrientField
+                id="potassium"
+                symbol="K"
+                label={c.nutrients.potassium}
+                hint={t.form.hints.potassium}
+                reportLabel={t.form.reportLabels.potassium}
+                unit={c.units.mgPerKg}
+                value={form.potassium}
+                onChange={handleChange}
+                placeholder={t.form.placeholder(HEALTHY_RANGES.potassium.min, HEALTHY_RANGES.potassium.max)}
+                range={HEALTHY_RANGES.potassium}
+              />
+              <PhField
+                label={c.nutrients.ph}
+                hint={t.form.hints.ph}
+                reportLabel={t.form.reportLabels.ph}
+                value={form.ph}
+                onChange={handleChange}
+                placeholder={t.form.placeholder(HEALTHY_RANGES.ph.min, HEALTHY_RANGES.ph.max)}
+                range={HEALTHY_RANGES.ph}
+              />
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">{t.form.contextTitle}</h3>
+                <p className="text-xs text-muted-foreground">{t.form.contextDescription}</p>
+              </div>
+              <RegionalSeasonPicker
+                selectedProvince={form.province}
+                selectedSeason={form.season}
+                onProvinceChange={(province) => setForm((prev) => ({ ...prev, province }))}
+                onSeasonChange={(season) => setForm((prev) => ({ ...prev, season }))}
+              />
+            </div>
+
+            <div className="space-y-1.5 border-t border-border pt-5">
+              <Label htmlFor="notes" className="text-sm font-semibold text-foreground">
+                <NotebookPen className="size-4 text-muted-foreground" />
+                {t.form.notes}
+                <span className="text-xs font-normal text-muted-foreground">({t.form.optional})</span>
+              </Label>
+              <Input
+                id="notes"
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder={t.form.notesPlaceholder}
+                className="h-11 rounded-xl border-input bg-card px-3.5 shadow-xs hover:border-primary/30 focus-visible:border-primary"
+              />
+            </div>
+
+            <AnimatePresence initial={false}>
+              {error && (
+                <motion.div
+                  role="alert"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-danger-soft p-3.5 text-sm text-destructive"
                 >
-                  {active && (
-                    <motion.span
-                      layoutId="analyze-tab-pill"
-                      className="absolute inset-0 rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-border"
-                      transition={{ type: "spring", stiffness: 420, damping: 36 }}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
-                    )}
-                  >
-                    <tab.icon className="size-4" />
-                  </span>
-                  <span className="relative flex min-w-0 flex-col items-start text-left">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                      {tab.label}
-                      {tab.key === "ocr" && (
-                        <span className="rounded-full bg-secondary px-1.5 py-px text-[10px] font-bold text-primary">
-                          {t.tabs.smart}
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden truncate text-xs font-normal text-muted-foreground sm:block">
-                      {tab.hint}
-                    </span>
-                  </span>
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <span>{error}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <AnimatePresence initial={false}>
-            {autoFillSuccess && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3, ease: EASE_OUT }}
-                className="overflow-hidden"
+            <motion.div whileHover={loading ? undefined : { scale: 1.01 }} whileTap={loading ? undefined : { scale: 0.985 }}>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading}
+                className="group h-13 w-full rounded-xl text-base font-semibold shadow-[0_8px_24px_-8px_var(--primary)] disabled:opacity-80"
               >
-                <div className="flex items-start gap-3 rounded-xl border border-success/20 bg-success-soft p-3.5 text-sm text-foreground">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-                  <span className="flex-1">{t.form.autoFilled}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAutoFillSuccess(false)}
-                    aria-label={c.actions.close}
-                    className="-m-1 rounded-md p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-4" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <TabsContent value="manual">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: EASE_OUT }}
-              className="space-y-5"
-            >
-              <div className="lg:hidden">{presetPicker}</div>
-
-              <form onSubmit={handleSubmit} className="surface space-y-6 p-5 sm:p-7">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
-                    <FlaskConical className="size-5" />
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-bold tracking-tight text-foreground">{t.form.title}</h2>
-                    <p className="text-sm text-muted-foreground">{t.form.description}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
-                  <NutrientField
-                    id="nitrogen"
-                    symbol="N"
-                    label={c.nutrients.nitrogen}
-                    hint={t.form.hints.nitrogen}
-                    unit={c.units.mgPerKg}
-                    value={form.nitrogen}
-                    onChange={handleChange}
-                    placeholder={t.form.placeholder("120")}
-                    range={HEALTHY_RANGES.nitrogen}
-                  />
-                  <NutrientField
-                    id="phosphorus"
-                    symbol="P"
-                    label={c.nutrients.phosphorus}
-                    hint={t.form.hints.phosphorus}
-                    unit={c.units.mgPerKg}
-                    value={form.phosphorus}
-                    onChange={handleChange}
-                    placeholder={t.form.placeholder("45")}
-                    range={HEALTHY_RANGES.phosphorus}
-                  />
-                  <NutrientField
-                    id="potassium"
-                    symbol="K"
-                    label={c.nutrients.potassium}
-                    hint={t.form.hints.potassium}
-                    unit={c.units.mgPerKg}
-                    value={form.potassium}
-                    onChange={handleChange}
-                    placeholder={t.form.placeholder("50")}
-                    range={HEALTHY_RANGES.potassium}
-                  />
-                  <PhField
-                    label={c.nutrients.ph}
-                    hint={t.form.hints.ph}
-                    value={form.ph}
-                    onChange={handleChange}
-                    placeholder={t.form.placeholder("6.2")}
-                    range={HEALTHY_RANGES.ph}
-                  />
-                </div>
-
-                <div className="space-y-3 border-t border-border pt-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">{t.form.contextTitle}</h3>
-                    <p className="text-xs text-muted-foreground">{t.form.contextDescription}</p>
-                  </div>
-                  <RegionalSeasonPicker
-                    selectedProvince={form.province}
-                    selectedSeason={form.season}
-                    onProvinceChange={(province) => setForm((prev) => ({ ...prev, province }))}
-                    onSeasonChange={(season) => setForm((prev) => ({ ...prev, season }))}
-                  />
-                </div>
-
-                <div className="space-y-1.5 border-t border-border pt-5">
-                  <Label htmlFor="notes" className="text-sm font-semibold text-foreground">
-                    <NotebookPen className="size-4 text-muted-foreground" />
-                    {t.form.notes}
-                    <span className="text-xs font-normal text-muted-foreground">({t.form.optional})</span>
-                  </Label>
-                  <Input
-                    id="notes"
-                    name="notes"
-                    value={form.notes}
-                    onChange={handleChange}
-                    placeholder={t.form.notesPlaceholder}
-                    className="h-11 rounded-xl border-input bg-card px-3.5 shadow-xs hover:border-primary/30 focus-visible:border-primary"
-                  />
-                </div>
-
-                <AnimatePresence initial={false}>
-                  {error && (
-                    <motion.div
-                      role="alert"
-                      initial={{ opacity: 0, y: -6 }}
+                <AnimatePresence mode="wait" initial={false}>
+                  {loading ? (
+                    <motion.span
+                      key="loading"
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-danger-soft p-3.5 text-sm text-destructive"
+                      className="flex items-center gap-2"
                     >
-                      <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                      <span>{error}</span>
-                    </motion.div>
+                      <Loader2 className="size-5 animate-spin" />
+                      {t.form.submitting}
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="idle"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="flex items-center gap-2"
+                    >
+                      <Sparkles className="size-4.5" />
+                      {t.form.submit}
+                      <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                    </motion.span>
                   )}
                 </AnimatePresence>
-
-                <motion.div whileHover={loading ? undefined : { scale: 1.01 }} whileTap={loading ? undefined : { scale: 0.985 }}>
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={loading}
-                    className="group h-13 w-full rounded-xl text-base font-semibold shadow-[0_8px_24px_-8px_var(--primary)] disabled:opacity-80"
-                  >
-                    <AnimatePresence mode="wait" initial={false}>
-                      {loading ? (
-                        <motion.span
-                          key="loading"
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          className="flex items-center gap-2"
-                        >
-                          <Loader2 className="size-5 animate-spin" />
-                          {t.form.submitting}
-                        </motion.span>
-                      ) : (
-                        <motion.span
-                          key="idle"
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          className="flex items-center gap-2"
-                        >
-                          <Sparkles className="size-4.5" />
-                          {t.form.submit}
-                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </Button>
-                </motion.div>
-              </form>
+              </Button>
             </motion.div>
-          </TabsContent>
-
-          <TabsContent value="ocr">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: EASE_OUT }}
-            >
-              <SoilReportScanner onAutoFill={handleOcrAutoFill} />
-            </motion.div>
-          </TabsContent>
-        </Tabs>
+          </form>
+        </motion.div>
       </div>
 
       <aside className="space-y-5 lg:sticky lg:top-24">

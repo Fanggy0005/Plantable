@@ -39,7 +39,7 @@ import {
 import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
 import { profileMessages } from "@/features/profile/messages"
-import type { Crop } from "@/types"
+import type { Crop, UserProfile } from "@/types"
 
 function ProfileSkeleton() {
   return (
@@ -65,7 +65,7 @@ export default function ProfilePage() {
   const fmt = useFormat()
   const { data: session, isPending: sessionPending } = authClient.useSession()
 
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [favorites, setFavorites] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
   const [editingName, setEditingName] = useState("")
@@ -77,37 +77,33 @@ export default function ProfilePage() {
       return
     }
 
-    if (session?.user) {
-      loadData()
+    if (!session?.user) return
+
+    let cancelled = false
+    Promise.all([fetchUserProfile().catch(() => null), fetchFavorites().catch(() => [])])
+      .then(([profileData, favData]) => {
+        if (cancelled) return
+        if (profileData) {
+          setProfile(profileData)
+          setEditingName(profileData.name || "")
+        }
+        setFavorites(favData)
+      })
+      .catch((e) => console.error("Failed to load profile data", e))
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
   }, [session, sessionPending, router])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const [profileData, favData] = await Promise.all([
-        fetchUserProfile().catch(() => null),
-        fetchFavorites().catch(() => []),
-      ])
-
-      if (profileData) {
-        setProfile(profileData)
-        setEditingName(profileData.name || "")
-      }
-      setFavorites(favData)
-    } catch (e) {
-      console.error("Failed to load profile data", e)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault()
     setSavingName(true)
     try {
       const updated = await updateUserProfile({ name: editingName })
-      setProfile((prev: any) => ({ ...prev, name: updated.name }))
+      setProfile((prev) => (prev ? { ...prev, name: updated.name } : prev))
       toast.success(t.edit.saved)
     } catch (err) {
       console.error("Failed to update profile", err)

@@ -8,6 +8,10 @@ import type {
   RegionalCropSuitability,
   CropEconomics,
   AnalyticsDashboardData,
+  AnalysisRecommendationDto,
+  AnalysisHistoryItem,
+  LocalHistoryEntry,
+  UserProfile,
 } from "../types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -25,17 +29,17 @@ export async function recommendPlants(soil: SoilInput): Promise<AnalysisResult> 
     throw new Error(errorBody.message || "Failed to fetch recommendations")
   }
 
-  const data = await res.json()
+  const data: AnalysisResult = await res.json()
 
   // Also auto-save to browser local history so guest tests are never lost!
   try {
     if (typeof window !== "undefined") {
-      const stored = JSON.parse(localStorage.getItem("plantable_local_history") || "[]")
-      const newEntry = {
+      const stored: LocalHistoryEntry[] = JSON.parse(localStorage.getItem("plantable_local_history") || "[]")
+      const newEntry: LocalHistoryEntry = {
         id: data.analysisId || `local-${Date.now()}`,
         createdAt: new Date().toISOString(),
         soil: data.soil,
-        recommendations: data.rankings?.slice(0, 3)?.map((r: any) => ({
+        recommendations: data.rankings?.slice(0, 3)?.map((r) => ({
           crop: { name: r.name, nameTh: r.nameTh },
           suitabilityScore: r.score,
           recommendationLevel: r.level || "Good",
@@ -86,18 +90,24 @@ export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
   }
 
   const json = await res.json()
-  const data = json.data
+  const data: {
+    analysisId: string
+    createdAt: string
+    soil: SoilInput
+    recommendations: AnalysisRecommendationDto[]
+    soilImprovement?: SoilImprovementPlan
+  } = json.data
   return {
     analysisId: data.analysisId,
     createdAt: data.createdAt,
     soil: data.soil,
-    rankings: data.recommendations.map((r: any) => ({
+    rankings: data.recommendations.map((r) => ({
       plantId: r.cropId,
       name: r.cropName,
       nameTh: r.cropNameTh,
       scientificName: r.scientificName,
       category: r.category,
-      description: r.description,
+      description: r.description ?? "",
       imageUrl: r.imageUrl,
       score: r.score,
       level: r.level,
@@ -110,7 +120,7 @@ export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
   }
 }
 
-export async function fetchUserHistory(): Promise<any[]> {
+export async function fetchUserHistory(): Promise<AnalysisHistoryItem[]> {
   const res = await fetch(`${API_URL}/api/analyses/history`, {
     credentials: "include",
   })
@@ -137,7 +147,7 @@ export async function claimAnalysis(id: string): Promise<boolean> {
   return res.ok
 }
 
-export async function fetchUserProfile(): Promise<any> {
+export async function fetchUserProfile(): Promise<UserProfile> {
   const res = await fetch(`${API_URL}/api/users/me`, {
     credentials: "include",
   })
@@ -148,7 +158,10 @@ export async function fetchUserProfile(): Promise<any> {
   return json.data
 }
 
-export async function updateUserProfile(data: { name?: string; image?: string }): Promise<any> {
+export async function updateUserProfile(data: {
+  name?: string
+  image?: string
+}): Promise<Omit<UserProfile, "createdAt" | "_count">> {
   const res = await fetch(`${API_URL}/api/users/me`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

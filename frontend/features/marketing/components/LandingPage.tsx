@@ -7,11 +7,11 @@ import {
   BarChart3,
   BookOpen,
   CheckCircle2,
+  ClipboardList,
   Coins,
   Compass,
   FileDown,
   FlaskConical,
-  ScanLine,
   ShieldCheck,
   Sparkles,
   Sprout,
@@ -141,12 +141,12 @@ function ProductPreview() {
 
 function Hero() {
   const t = useT(landingMessages)
-  const trustIcons = [ShieldCheck, CheckCircle2, ScanLine]
+  const trustIcons = [ShieldCheck, CheckCircle2, ClipboardList]
 
   return (
     <section className="relative w-full overflow-hidden bg-forest-gradient text-forest-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-dot-grid-dark opacity-60 [mask-image:radial-gradient(70%_60%_at_50%_30%,black,transparent)]" />
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[780px] -translate-x-1/2 rounded-full bg-forest-accent/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-dot-grid-dark opacity-60 mask-[radial-gradient(70%_60%_at_50%_30%,black,transparent)]" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-120 w-195 -translate-x-1/2 rounded-full bg-forest-accent/10 blur-3xl" />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
         <Stagger immediate stagger={0.08} className="space-y-7 text-center lg:text-left">
@@ -217,16 +217,16 @@ function Hero() {
 function StatsStrip() {
   const t = useT(landingMessages)
   const stats = [
-    { value: 12, label: t.stats.crops, icon: Sprout },
-    { value: 4, label: t.stats.params, icon: TestTube2 },
-    { value: 100, label: t.stats.score, icon: BarChart3 },
+    { id: "crops", value: 12, label: t.stats.crops, icon: Sprout },
+    { id: "params", value: 4, label: t.stats.params, icon: TestTube2 },
+    { id: "score", value: 100, label: t.stats.score, icon: BarChart3 },
   ]
 
   return (
     <section className="relative z-10 mx-auto -mt-10 w-full max-w-5xl px-4 sm:px-6">
       <Stagger className="surface grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {stats.map((s) => (
-          <StaggerItem key={s.label} className="flex items-center gap-4 px-6 py-5">
+          <StaggerItem key={s.id} className="flex items-center gap-4 px-6 py-5">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
               <s.icon className="size-5" />
             </span>
@@ -270,8 +270,10 @@ function Workflow() {
           <div className="pointer-events-none absolute top-11 right-[16%] left-[16%] hidden h-px bg-linear-to-r from-transparent via-border to-transparent md:block" />
           {t.steps.items.map((step, i) => {
             const Icon = icons[i]
+            // Key by position, not translated text: a new key on language switch remounts the card
+            // in its hidden variant, and the once-only reveal never replays, so it stays invisible
             return (
-              <StaggerItem key={step.title} className="surface-interactive group relative p-6 sm:p-7">
+              <StaggerItem key={i} className="surface-interactive group relative p-6 sm:p-7">
                 <div className="flex items-center justify-between">
                   <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
                     <Icon className="size-6" />
@@ -326,8 +328,8 @@ function Features() {
         <SectionIntro eyebrow={t.features.eyebrow} title={t.features.title} />
 
         <Stagger stagger={0.08} className="grid grid-cols-1 gap-5 md:grid-cols-6">
-          <FeatureCard icon={ScanLine} title={t.features.ocr.title} body={t.features.ocr.body} className="md:col-span-3">
-            {/* mini scan visual */}
+          <FeatureCard icon={ClipboardList} title={t.features.entry.title} body={t.features.entry.body} className="md:col-span-3">
+            {/* mini entry visual */}
             <div className="relative mt-6 overflow-hidden rounded-xl border border-border bg-muted/50 p-4">
               <div className="space-y-2">
                 {[
@@ -343,11 +345,6 @@ function Features() {
                   </div>
                 ))}
               </div>
-              <motion.div
-                className="pointer-events-none absolute inset-x-0 h-10 bg-linear-to-b from-transparent via-forest-accent/25 to-transparent"
-                animate={{ top: ["-20%", "100%"] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              />
             </div>
           </FeatureCard>
 

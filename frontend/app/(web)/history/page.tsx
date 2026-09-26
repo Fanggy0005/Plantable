@@ -43,6 +43,7 @@ import { commonMessages } from "@/lib/i18n/messages/common"
 import { historyMessages } from "@/features/history/messages"
 import { scoreTone, TONE_BADGE } from "@/lib/score"
 import { cn } from "@/lib/utils"
+import type { AnalysisHistoryItem, AnalysisResult, LocalHistoryEntry } from "@/types"
 
 const LOCAL_KEY = "plantable_local_history"
 
@@ -53,11 +54,12 @@ interface HistoryRow {
   isLocal: boolean
   soil: { nitrogen?: number; phosphorus?: number; potassium?: number; ph?: number }
   topCrops: Array<{ name?: string; nameTh?: string; category?: string; score?: number; level?: string }>
-  raw: any
+  fullResult?: AnalysisResult
 }
 
-function toRow(item: any, isLocal: boolean): HistoryRow {
-  const soil = isLocal ? item.soil ?? {} : item
+function toRow(item: AnalysisHistoryItem | LocalHistoryEntry, isLocal: boolean): HistoryRow {
+  // Local entries nest soil values under `soil`; cloud entries carry them at the top level
+  const soil = "soil" in item ? item.soil : item
   return {
     id: item.id,
     createdAt: item.createdAt,
@@ -68,15 +70,34 @@ function toRow(item: any, isLocal: boolean): HistoryRow {
       potassium: soil?.potassium,
       ph: soil?.ph,
     },
-    topCrops: (item.recommendations ?? []).slice(0, 3).map((r: any) => ({
+    topCrops: (item.recommendations ?? []).slice(0, 3).map((r) => ({
       name: r.crop?.name,
       nameTh: r.crop?.nameTh,
       category: r.crop?.category,
       score: r.suitabilityScore,
       level: r.recommendationLevel,
     })),
-    raw: item,
+    fullResult: "fullResult" in item ? item.fullResult : undefined,
   }
+}
+
+function readLocalHistory(): LocalHistoryEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]")
+  } catch (e) {
+    console.error("Failed to load local history", e)
+    return []
+  }
+}
+
+async function loadHistory(isSignedIn: boolean) {
+  const cloud: AnalysisHistoryItem[] = isSignedIn
+    ? await fetchUserHistory().catch((e) => {
+        console.error("Failed to load DB history", e)
+        return []
+      })
+    : []
+  return { local: readLocalHistory(), cloud }
 }
 
 type PendingDelete = { kind: "one"; row: HistoryRow } | { kind: "clearLocal" } | null
@@ -87,44 +108,28 @@ export default function HistoryPage() {
   const common = useT(commonMessages)
   const { data: session } = authClient.useSession()
 
-  const [dbHistory, setDbHistory] = useState<any[]>([])
-  const [localHistory, setLocalHistory] = useState<any[]>([])
+  const [dbHistory, setDbHistory] = useState<AnalysisHistoryItem[]>([])
+  const [localHistory, setLocalHistory] = useState<LocalHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const isSignedIn = Boolean(session?.user)
+
   useEffect(() => {
-    loadAllHistory()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session])
-
-  const loadAllHistory = async () => {
-    setLoading(true)
-
-    // 1. Load local cache
-    try {
-      if (typeof window !== "undefined") {
-        const stored = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]")
-        setLocalHistory(stored)
-      }
-    } catch (e) {
-      console.error("Failed to load local history", e)
+    let cancelled = false
+    loadHistory(isSignedIn).then(({ local, cloud }) => {
+      if (cancelled) return
+      setLocalHistory(local)
+      setDbHistory(cloud)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
     }
-
-    // 2. Load DB history if logged in
-    if (session?.user) {
-      try {
-        const dbData = await fetchUserHistory()
-        setDbHistory(dbData)
-      } catch (e) {
-        console.error("Failed to load DB history", e)
-      }
-    }
-
-    setLoading(false)
-  }
+  }, [isSignedIn])
 
   const confirmDelete = async () => {
     if (!pendingDelete) return
@@ -164,8 +169,9 @@ export default function HistoryPage() {
         }
       }
       localStorage.removeItem(LOCAL_KEY)
-      setLocalHistory([])
-      await loadAllHistory()
+      const { local, cloud } = await loadHistory(true)
+      setLocalHistory(local)
+      setDbHistory(cloud)
       toast.success(t.syncDone)
     } catch (e) {
       console.error("Sync error:", e)
@@ -176,8 +182,8 @@ export default function HistoryPage() {
   }
 
   const handleOpenResult = async (row: HistoryRow) => {
-    if (row.raw.fullResult) {
-      sessionStorage.setItem("plantResult", JSON.stringify(row.raw.fullResult))
+    if (row.fullResult) {
+      sessionStorage.setItem("plantResult", JSON.stringify(row.fullResult))
       router.push("/results")
       return
     }

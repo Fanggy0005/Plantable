@@ -54,25 +54,32 @@ export function AnalyticsDashboard() {
   const t = useT(analyticsMessages)
   const [data, setData] = useState<AnalyticsDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = await fetchAnalyticsDashboard()
-      setData(res)
-    } catch (err: any) {
-      setError(err.message || t.loadError)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [error, setError] = useState<Error | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    loadData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    let cancelled = false
+    fetchAnalyticsDashboard()
+      .then((res) => {
+        if (cancelled) return
+        setData(res)
+        setError(null)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  const reload = () => {
+    setLoading(true)
+    setReloadKey((k) => k + 1)
+  }
 
   return (
     <div className="space-y-6">
@@ -82,7 +89,7 @@ export function AnalyticsDashboard() {
         title={t.title}
         description={t.description}
         actions={
-          <Button variant="outline" className="h-10" onClick={loadData} disabled={loading}>
+          <Button variant="outline" className="h-10" onClick={reload} disabled={loading}>
             <RefreshCw className={cn(loading && "animate-spin")} />
             {t.refresh}
           </Button>
@@ -92,7 +99,7 @@ export function AnalyticsDashboard() {
       {loading && !data ? (
         <DashboardSkeleton />
       ) : error || !data ? (
-        <ErrorState title={t.loadError} description={error ?? undefined} onRetry={loadData} />
+        <ErrorState title={t.loadError} description={error?.message || undefined} onRetry={reload} />
       ) : (
         <DashboardContent data={data} />
       )}
@@ -455,12 +462,12 @@ function TimelineCard({
         <p className="py-10 text-center text-sm text-muted-foreground">{t.empty}</p>
       ) : (
         <Stagger className="relative space-y-1">
-          <span className="absolute top-3 bottom-3 left-[7px] w-px bg-border" aria-hidden />
+          <span className="absolute top-3 bottom-3 left-1.75 w-px bg-border" aria-hidden />
           {timeline.slice(0, 6).map((item, i) => {
             const tone = scoreTone(item.suitabilityScore)
             return (
               <StaggerItem key={item.id} className="relative flex items-start gap-3 rounded-xl py-2 pr-2">
-                <span className="relative mt-1.5 flex size-[15px] shrink-0 items-center justify-center">
+                <span className="relative mt-1.5 flex size-3.75 shrink-0 items-center justify-center">
                   {i === 0 && <span className="absolute inset-0 animate-ping rounded-full bg-success/40" />}
                   <span className="relative size-2.5 rounded-full bg-primary ring-4 ring-card" />
                 </span>

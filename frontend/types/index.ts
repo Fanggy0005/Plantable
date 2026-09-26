@@ -155,7 +155,61 @@ export interface OcrExtractedSoilData {
     overall: number
   }
   rawText?: string
-  extractedData?: Record<string, any>
+}
+
+/** Recommendation row as returned by GET /api/analyses/:id (mapped to RecommendedCrop on the client). */
+export interface AnalysisRecommendationDto {
+  id: string
+  cropId: string
+  cropName: string
+  cropNameTh: string
+  scientificName?: string | null
+  category: string
+  description?: string | null
+  imageUrl?: string | null
+  score: number
+  level?: RecommendationLevel
+  breakdown: RecommendedCrop["breakdown"]
+  reasons: string[]
+  improvementSuggestions: string[]
+  cropRequirement?: CropRequirement | null
+}
+
+/** Top-crop preview stored on a history entry (cloud rows from the API, local rows cached by recommendPlants). */
+export interface HistoryRecommendationPreview {
+  crop?: { name?: string; nameTh?: string; category?: string }
+  suitabilityScore?: number
+  recommendationLevel?: string
+}
+
+/** Saved analysis summary from GET /api/analyses/history. */
+export interface AnalysisHistoryItem {
+  id: string
+  createdAt: string
+  nitrogen: number
+  phosphorus: number
+  potassium: number
+  ph: number
+  recommendations?: HistoryRecommendationPreview[]
+}
+
+/** Analysis cached in localStorage so guest results are never lost. */
+export interface LocalHistoryEntry {
+  id: string
+  createdAt: string
+  soil: SoilInput
+  recommendations?: HistoryRecommendationPreview[]
+  fullResult?: AnalysisResult
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  image: string | null
+  createdAt?: string
+  updatedAt: string
+  _count?: { analyses: number; favorites: number }
 }
 
 // ==========================================

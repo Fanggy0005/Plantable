@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "motion/react"
+import { FileText } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useT } from "@/lib/i18n"
@@ -18,6 +19,24 @@ const STATUS_STYLE: Record<Status, { dot: string; text: string; marker: string }
 
 const clampPct = (n: number) => Math.max(0, Math.min(100, n))
 
+/** Hint line plus the label to look for on a lab report, so users can match fields to their sheet. */
+function FieldHelp({ hint, reportLabel }: { hint: string; reportLabel?: string }) {
+  const t = useT(soilAnalysisMessages)
+  return (
+    <div className="space-y-1 text-xs text-muted-foreground">
+      <p>{hint}</p>
+      {reportLabel && (
+        <p className="flex items-start gap-1.5">
+          <FileText className="mt-px size-3.5 shrink-0" />
+          <span>
+            <span className="font-medium text-foreground/80">{t.form.onReport}</span> {reportLabel}
+          </span>
+        </p>
+      )}
+    </div>
+  )
+}
+
 const inputClass =
   "h-12 rounded-xl border-input bg-card pr-16 text-lg font-semibold tabular-nums shadow-xs hover:border-primary/30 focus-visible:border-primary"
 
@@ -27,6 +46,7 @@ export function NutrientField({
   symbol,
   label,
   hint,
+  reportLabel,
   unit,
   value,
   onChange,
@@ -37,6 +57,7 @@ export function NutrientField({
   symbol: string
   label: string
   hint: string
+  reportLabel?: string
   unit: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -101,7 +122,7 @@ export function NutrientField({
           />
         )}
       </div>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <FieldHelp hint={hint} reportLabel={reportLabel} />
     </div>
   )
 }
@@ -126,6 +147,7 @@ const PH_DOT: Record<PhStatus, string> = {
 export function PhField({
   label,
   hint,
+  reportLabel,
   value,
   onChange,
   placeholder,
@@ -133,6 +155,7 @@ export function PhField({
 }: {
   label: string
   hint: string
+  reportLabel?: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   placeholder: string
@@ -221,7 +244,7 @@ export function PhField({
           <span>{t.form.phScale.alkaline}</span>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <FieldHelp hint={hint} reportLabel={reportLabel} />
     </div>
   )
 }

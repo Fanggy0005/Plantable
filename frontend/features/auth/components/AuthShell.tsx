@@ -67,8 +67,8 @@ export function AuthShell({
           </span>
           <h2 className="max-w-sm text-3xl leading-tight font-bold tracking-tight">{t.panel.title}</h2>
           <Stagger immediate stagger={0.08} className="space-y-3.5">
-            {t.panel.benefits.map((b) => (
-              <StaggerItem key={b} className="flex items-start gap-3 text-forest-muted">
+            {t.panel.benefits.map((b, i) => (
+              <StaggerItem key={i} className="flex items-start gap-3 text-forest-muted">
                 <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-forest-accent" />
                 <span className="text-base">{b}</span>
               </StaggerItem>

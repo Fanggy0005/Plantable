@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -72,7 +72,7 @@ function SectionNav({ items }: { items: { id: SectionId; label: string; icon: Lu
 
   return (
     <div className="sticky top-16 z-30 -mx-4 border-b border-border bg-background/85 px-4 py-2 backdrop-blur-lg sm:-mx-6 sm:px-6">
-      <nav className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
+      <nav className="flex gap-1 overflow-x-auto scrollbar-none">
         {items.map((item) => {
           const isActive = item.id === active
           return (
@@ -207,10 +207,25 @@ function ResultsSkeleton() {
             <Skeleton key={i} className="h-44" />
           ))}
         </div>
-        <Skeleton className="hidden h-[520px] lg:block" />
+        <Skeleton className="hidden h-130 lg:block" />
       </div>
     </div>
   )
+}
+
+const RESULT_KEY = "plantResult"
+
+// sessionStorage has no change events within the same tab; the value is written before navigating here
+const subscribeToNothing = () => () => {}
+
+function parseStoredResult(raw: string | null): AnalysisResult | null {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as AnalysisResult
+  } catch (e) {
+    console.error("Failed to parse analysis results", e)
+    return null
+  }
 }
 
 export default function ResultsPage() {
@@ -219,32 +234,25 @@ export default function ResultsPage() {
   const common = useT(commonMessages)
   const fmt = useFormat()
   const { data: session } = authClient.useSession()
-  const [result, setResult] = useState<AnalysisResult | null>(null)
-  const [selectedCrop, setSelectedCrop] = useState<RecommendedCrop | null>(null)
+  const storedResult = useSyncExternalStore(
+    subscribeToNothing,
+    () => sessionStorage.getItem(RESULT_KEY),
+    () => null
+  )
+  const result = useMemo(() => parseStoredResult(storedResult), [storedResult])
+  const [pickedCrop, setSelectedCrop] = useState<RecommendedCrop | null>(null)
+  // Default to the top-ranked crop until the user picks one
+  const selectedCrop = pickedCrop ?? result?.rankings[0] ?? null
   const [categoryFilter, setCategoryFilter] = useState<string>("All")
   const [exporting, setExporting] = useState(false)
-  const [soilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
+  const [fetchedSoilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
+  const soilPlan = fetchedSoilPlan ?? result?.soilImprovement ?? null
   const panelRef = useRef<HTMLDivElement>(null)
   const [viewedAt] = useState(() => Date.now())
 
   useEffect(() => {
-    const data = sessionStorage.getItem("plantResult")
-    if (!data) {
-      router.push("/analyze")
-      return
-    }
-
-    try {
-      const parsed: AnalysisResult = JSON.parse(data)
-      setResult(parsed)
-      if (parsed.soilImprovement) {
-        setSoilPlan(parsed.soilImprovement)
-      }
-      if (parsed.rankings && parsed.rankings.length > 0) {
-        setSelectedCrop(parsed.rankings[0]) // Select top ranked crop by default
-      }
-    } catch (e) {
-      console.error("Failed to parse analysis results", e)
+    // Read storage directly: during hydration `result` is still the server snapshot (null)
+    if (!parseStoredResult(sessionStorage.getItem(RESULT_KEY))) {
       router.push("/analyze")
     }
   }, [router])
@@ -386,7 +394,7 @@ export default function ResultsPage() {
               <div
                 role="radiogroup"
                 aria-label={t.filterLabel}
-                className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+                className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0"
               >
                 {categories.map((cat) => {
                   const active = categoryFilter === cat

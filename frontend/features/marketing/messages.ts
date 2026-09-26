@@ -10,7 +10,7 @@ export const landingMessages = defineMessages({
         "เปลี่ยนค่าแล็บไนโตรเจน (N) ฟอสฟอรัส (P) โพแทสเซียม (K) และ pH ให้เป็นอันดับพืชที่เหมาะสม แผนปรับปรุงดิน และประมาณการผลตอบแทน ภายในไม่กี่วินาที",
       primaryCta: "เริ่มวิเคราะห์ดินฟรี",
       secondaryCta: "ดูฐานข้อมูลพืช",
-      trust: ["เกณฑ์ตามหลักวิชาการ", "ไม่ต้องติดตั้ง ใช้งานฟรี", "รองรับใบผลตรวจจากแล็บ"],
+      trust: ["เกณฑ์ตามหลักวิชาการ", "ไม่ต้องติดตั้ง ใช้งานฟรี", "ใช้ได้กับใบผลตรวจทุกแล็บ"],
     },
     preview: {
       title: "ผลการวิเคราะห์แปลงตัวอย่าง",
@@ -38,8 +38,8 @@ export const landingMessages = defineMessages({
       description: "ออกแบบให้เกษตรกรและหน่วยงานตรวจดินใช้งานได้ทันที ไม่ต้องมีความรู้ด้านเทคนิค",
       items: [
         {
-          title: "กรอกค่าดินหรือสแกนใบผลตรวจ",
-          body: "พิมพ์ค่า N-P-K และ pH เอง อัปโหลดใบผลแล็บให้ระบบอ่านอัตโนมัติ หรือเลือกดินตัวอย่างเพื่อทดลอง",
+          title: "กรอกค่าดินจากใบผลตรวจ",
+          body: "พิมพ์ค่า N-P-K และ pH จากใบผลแล็บหรือชุดตรวจดิน หรือเลือกดินตัวอย่างเพื่อทดลอง",
         },
         {
           title: "ระบบประเมินกับพืช 12 ชนิด",
@@ -54,9 +54,9 @@ export const landingMessages = defineMessages({
     features: {
       eyebrow: "ฟีเจอร์",
       title: "ทุกอย่างที่ต้องใช้ในการตัดสินใจก่อนปลูก",
-      ocr: {
-        title: "สแกนใบผลตรวจดิน",
-        body: "อัปโหลดรูปหรือ PDF ใบผลแล็บ ระบบดึงค่า N-P-K และ pH ให้อัตโนมัติ พร้อมระดับความมั่นใจ",
+      entry: {
+        title: "กรอกค่าจากใบผลตรวจได้ง่าย",
+        body: "ทุกช่องบอกชื่อค่าที่ต้องหาบนใบผลแล็บ หน่วย และช่วงค่าปกติ พร้อมแสดงระดับต่ำ–สูงทันทีขณะพิมพ์",
       },
       plan: {
         title: "แผนปรับปรุงดินเฉพาะพืช",
@@ -91,7 +91,7 @@ export const landingMessages = defineMessages({
         "Turn lab values for nitrogen (N), phosphorus (P), potassium (K) and pH into ranked crop matches, a soil improvement plan and a return estimate — in seconds.",
       primaryCta: "Analyze soil for free",
       secondaryCta: "Browse crops",
-      trust: ["Research-based criteria", "Free, nothing to install", "Reads lab report sheets"],
+      trust: ["Research-based criteria", "Free, nothing to install", "Works with any lab report"],
     },
     preview: {
       title: "Sample field analysis",
@@ -119,8 +119,8 @@ export const landingMessages = defineMessages({
       description: "Built for farmers and soil testing teams — no technical background needed.",
       items: [
         {
-          title: "Enter values or scan a report",
-          body: "Type N-P-K and pH, upload a lab report for automatic reading, or pick a sample soil to try it out.",
+          title: "Enter your soil test values",
+          body: "Type N-P-K and pH from a lab report or soil test kit, or pick a sample soil to try it out.",
         },
         {
           title: "Scored against 12 crops",
@@ -135,9 +135,9 @@ export const landingMessages = defineMessages({
     features: {
       eyebrow: "Features",
       title: "Everything you need to decide before you plant",
-      ocr: {
-        title: "Scan soil reports",
-        body: "Upload a photo or PDF of a lab report and N-P-K and pH are extracted automatically, with confidence levels.",
+      entry: {
+        title: "Easy entry from your lab report",
+        body: "Each field shows the label to look for on your report, its unit and typical range, with live low/high feedback as you type.",
       },
       plan: {
         title: "Crop-specific soil plan",
