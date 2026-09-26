@@ -7,11 +7,7 @@ export const uploadRoutes = new Elysia({ prefix: "/api" })
   .post(
     "/uploads",
     async ({ body }) => {
-      const file = (body as any)?.file
-      if (!file) {
-        return errorResponse("Please provide a file to upload")
-      }
-      return uploadController.uploadReport(file, (file as any)?.name)
+      return uploadController.uploadReport(body.file, body.file.name)
     },
     {
       body: t.Object({
@@ -27,24 +23,30 @@ export const uploadRoutes = new Elysia({ prefix: "/api" })
   .post(
     "/ocr",
     async ({ body }) => {
-      const payload = body as any
-
       // Case A: fileId provided as JSON
-      if (payload?.fileId) {
-        return uploadController.extractOcr(payload.fileId)
+      if (body.fileId) {
+        return uploadController.extractOcr(body.fileId)
       }
 
       // Case B: direct text provided as JSON
-      if (payload?.text) {
-        return uploadController.extractFromText(payload.text, payload.title)
+      if (body.text) {
+        return uploadController.extractFromText(body.text, body.title)
       }
 
       // Case C: direct file upload via multipart
-      if (payload?.file) {
-        return uploadController.directExtractOcr(payload.file, payload.file?.name)
+      if (body.file) {
+        return uploadController.directExtractOcr(body.file, body.file.name)
       }
 
       return errorResponse("Invalid OCR request: Please provide 'fileId', 'text', or 'file'")
+    },
+    {
+      body: t.Object({
+        fileId: t.Optional(t.String()),
+        text: t.Optional(t.String()),
+        title: t.Optional(t.String()),
+        file: t.Optional(t.File({ maxSize: "10m" })),
+      }),
     }
   )
 

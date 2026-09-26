@@ -1,7 +1,7 @@
 import { soilImprovementService } from "../services/soil-improvement.service"
 import { cropRepository } from "../repositories/crop.repository"
 import { analysisRepository } from "../repositories/analysis.repository"
-import { successResponse, errorResponse } from "../utils/response"
+import { successResponse, errorResponse, errorFromCaught } from "../utils/response"
 import type { SoilInput } from "../types"
 
 export class SoilImprovementController {
@@ -22,8 +22,8 @@ export class SoilImprovementController {
 
       const plan = soilImprovementService.generatePlan(soil, cropContext)
       return successResponse(plan, "Soil improvement plan generated successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to generate soil improvement plan", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to generate soil improvement plan")
     }
   }
 
@@ -68,8 +68,8 @@ export class SoilImprovementController {
 
       const plan = soilImprovementService.generatePlan(soil, cropContext)
       return successResponse(plan, "Soil improvement plan retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to retrieve soil improvement plan", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to retrieve soil improvement plan")
     }
   }
 }

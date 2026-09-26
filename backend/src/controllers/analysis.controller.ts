@@ -1,5 +1,5 @@
 import { analysisService } from "../services/analysis.service"
-import { successResponse, errorResponse } from "../utils/response"
+import { successResponse, errorFromCaught } from "../utils/response"
 import type { SoilInput } from "../types"
 
 export class AnalysisController {
@@ -7,8 +7,8 @@ export class AnalysisController {
     try {
       const result = await analysisService.createAndSaveAnalysis(soil, userId)
       return successResponse(result, "Analysis completed and saved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to process soil analysis", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to process soil analysis")
     }
   }
 
@@ -16,8 +16,8 @@ export class AnalysisController {
     try {
       const result = await analysisService.getAnalysisById(id)
       return successResponse(result, "Analysis retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Analysis not found", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Analysis not found")
     }
   }
 
@@ -25,8 +25,8 @@ export class AnalysisController {
     try {
       const history = await analysisService.getUserHistory(userId)
       return successResponse(history, "History retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to fetch analysis history", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to fetch analysis history")
     }
   }
 
@@ -34,8 +34,8 @@ export class AnalysisController {
     try {
       const result = await analysisService.computeInstantRecommendation(soil)
       return successResponse(result, "Recommendation generated successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to generate recommendation", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to generate recommendation")
     }
   }
 
@@ -43,8 +43,8 @@ export class AnalysisController {
     try {
       await analysisService.deleteAnalysis(id, userId)
       return successResponse({ success: true }, "Analysis deleted successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to delete analysis", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to delete analysis")
     }
   }
 
@@ -52,8 +52,8 @@ export class AnalysisController {
     try {
       const updated = await analysisService.claimAnalysis(id, userId)
       return successResponse(updated, "Analysis saved to your account")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to save analysis to account", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to save analysis to account")
     }
   }
 }

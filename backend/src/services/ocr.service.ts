@@ -211,35 +211,15 @@ export class OcrService {
     fileType: "pdf" | "image" | string,
     fileName?: string
   ): Promise<OcrExtractedSoilData> {
-    let extractedText = ""
+    const isPdf = fileType.toLowerCase().includes("pdf") || fileName?.toLowerCase().endsWith(".pdf")
 
-    if (fileType.toLowerCase().includes("pdf") || fileName?.toLowerCase().endsWith(".pdf")) {
-      extractedText = this.extractTextFromPdfBuffer(buffer)
-    } else {
-      // For images or text data: convert buffer representation or parse embedded labels
-      extractedText = buffer.toString("utf-8")
-    }
-
-    // If text was found in PDF/stream
-    if (extractedText && extractedText.length > 10) {
-      const result = this.parseSoilDataFromText(extractedText)
-      // If found at least 2 key metrics, return result
-      if (result.confidence.overall > 0.3) {
-        return {
-          ...result,
-          fileName,
-          fileType,
-        }
-      }
-    }
-
-    // If document is a scanned image or binary without clear text streams,
-    // fallback to secondary heuristic regex scan on raw binary representation
-    const fallbackText = buffer.toString("latin1")
-    const fallbackResult = this.parseSoilDataFromText(fallbackText)
+    // Only text-based PDFs carry readable text. Images (and scanned PDFs) need a real OCR
+    // engine; never regex-scan raw bytes, since random binary can match "N 120" and produce
+    // fake nutrient values. Unreadable files return all-null values with zero confidence.
+    const extractedText = isPdf ? this.extractTextFromPdfBuffer(buffer) : ""
 
     return {
-      ...fallbackResult,
+      ...this.parseSoilDataFromText(extractedText),
       fileName,
       fileType,
     }

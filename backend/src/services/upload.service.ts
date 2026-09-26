@@ -25,7 +25,7 @@ export class UploadService {
   }> {
     const size = file.size
     const type = file.type || "application/octet-stream"
-    const name = originalFileName || (file as any).name || `soil-report-${Date.now()}`
+    const name = originalFileName || (file instanceof File ? file.name : "") || `soil-report-${Date.now()}`
 
     // 1. Validation
     if (size > MAX_FILE_SIZE_BYTES) {
@@ -84,7 +84,8 @@ export class UploadService {
     // If already extracted, return cached extractedData
     if (report.ocrStatus === "completed" && report.extractedData) {
       return {
-        ...(report.extractedData as any),
+        // This column is only ever written with OcrExtractedSoilData (see updateOcrResult / create)
+        ...(report.extractedData as unknown as OcrExtractedSoilData),
         fileId: report.id,
         fileName: report.fileName || undefined,
         fileType: report.fileType,
@@ -119,9 +120,9 @@ export class UploadService {
       )
 
       return extracted
-    } catch (err: any) {
+    } catch (err) {
       await uploadRepository.updateOcrResult(report.id, "failed")
-      throw new Error(`OCR extraction failed: ${err.message}`)
+      throw new Error(`OCR extraction failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err })
     }
   }
 

@@ -1,14 +1,14 @@
 import { weatherService, THAI_PROVINCES, getCurrentSeason } from "../services/weather.service"
 import { cropRepository } from "../repositories/crop.repository"
-import { successResponse, errorResponse } from "../utils/response"
+import { successResponse, errorResponse, errorFromCaught } from "../utils/response"
 
 export class EnvironmentController {
   async getWeather(province?: string) {
     try {
       const data = await weatherService.getWeatherData(province)
       return successResponse(data, "Weather data retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to retrieve weather data", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to retrieve weather data")
     }
   }
 
@@ -21,8 +21,8 @@ export class EnvironmentController {
 
       const suitability = weatherService.evaluateRegionalSuitability(crop, province, season)
       return successResponse(suitability, "Regional crop suitability evaluated successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to evaluate regional suitability", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to evaluate regional suitability")
     }
   }
 
@@ -39,8 +39,8 @@ export class EnvironmentController {
         lon: loc.lon,
       }))
       return successResponse({ provinces, currentSeason }, "Provinces retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to retrieve provinces", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to retrieve provinces")
     }
   }
 }

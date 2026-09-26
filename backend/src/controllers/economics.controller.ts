@@ -1,7 +1,7 @@
 import { economicsService, CROP_ECONOMIC_BENCHMARKS } from "../services/economics.service"
 import { cropRepository } from "../repositories/crop.repository"
 import { analysisRepository } from "../repositories/analysis.repository"
-import { successResponse, errorResponse } from "../utils/response"
+import { successResponse, errorResponse, errorFromCaught } from "../utils/response"
 import type { SoilInput } from "../types"
 
 export class EconomicsController {
@@ -24,8 +24,8 @@ export class EconomicsController {
       )
 
       return successResponse(economics, "Crop economics calculated successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to calculate crop economics", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to calculate crop economics")
     }
   }
 
@@ -69,16 +69,16 @@ export class EconomicsController {
       )
 
       return successResponse(economics, "Analysis crop economics calculated successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to calculate analysis crop economics", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to calculate analysis crop economics")
     }
   }
 
   getBenchmarks() {
     try {
       return successResponse(CROP_ECONOMIC_BENCHMARKS, "Economic benchmarks retrieved successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to retrieve benchmarks", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to retrieve benchmarks")
     }
   }
 }

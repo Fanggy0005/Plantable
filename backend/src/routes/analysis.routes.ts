@@ -92,7 +92,7 @@ export const analysisRoutes = new Elysia({ prefix: "/api" })
           soil: res.data.soil,
           analysisId: res.data.analysisId,
           soilImprovement: res.data.soilImprovement,
-          rankings: res.data.recommendations.map((r: any) => ({
+          rankings: res.data.recommendations.map((r) => ({
             plantId: r.cropId,
             name: r.cropName,
             nameTh: r.cropNameTh,

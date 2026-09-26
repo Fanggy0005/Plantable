@@ -1,4 +1,6 @@
 import { prisma } from "../config/db"
+import { Prisma } from "../generated/prisma"
+import type { OcrExtractedSoilData } from "../types"
 
 export interface CreateUploadDto {
   id?: string
@@ -8,8 +10,13 @@ export interface CreateUploadDto {
   fileType: string
   fileSize?: number | null
   ocrStatus?: string
-  extractedData?: any
+  extractedData?: OcrExtractedSoilData
   rawText?: string | null
+}
+
+/** Spread into a plain object so the interface type satisfies Prisma's JSON input type (no cast needed). */
+function toJson(data: OcrExtractedSoilData): Prisma.InputJsonObject {
+  return { ...data }
 }
 
 export class UploadRepository {
@@ -23,7 +30,7 @@ export class UploadRepository {
         fileType: data.fileType,
         fileSize: data.fileSize || null,
         ocrStatus: data.ocrStatus || "pending",
-        extractedData: data.extractedData || null,
+        extractedData: data.extractedData ? toJson(data.extractedData) : Prisma.DbNull,
         rawText: data.rawText || null,
       },
     })
@@ -41,14 +48,14 @@ export class UploadRepository {
   async updateOcrResult(
     id: string,
     status: "completed" | "failed" | "processing",
-    extractedData?: any,
+    extractedData?: OcrExtractedSoilData,
     rawText?: string
   ) {
     return prisma.uploadedReport.update({
       where: { id },
       data: {
         ocrStatus: status,
-        extractedData: extractedData ?? undefined,
+        extractedData: extractedData ? toJson(extractedData) : undefined,
         rawText: rawText ?? undefined,
       },
     })

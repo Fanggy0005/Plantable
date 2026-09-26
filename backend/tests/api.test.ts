@@ -30,7 +30,7 @@ describe("API Endpoints Integration Tests", () => {
     expect(response.status).toBe(200)
     const json = await response.json()
     expect(json.success).toBe(true)
-    expect(json.data.every((c: any) => c.category === "Grain")).toBe(true)
+    expect(json.data.every((c: { category: string }) => c.category === "Grain")).toBe(true)
   })
 
   it("POST /api/analyses should analyze soil and return recommendations", async () => {

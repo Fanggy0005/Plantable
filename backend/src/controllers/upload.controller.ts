@@ -1,5 +1,5 @@
 import { uploadService } from "../services/upload.service"
-import { successResponse, errorResponse } from "../utils/response"
+import { successResponse, errorResponse, errorFromCaught } from "../utils/response"
 
 export class UploadController {
   async uploadReport(file: File | Blob, fileName?: string) {
@@ -9,8 +9,8 @@ export class UploadController {
       }
       const result = await uploadService.handleFileUpload(file, fileName)
       return successResponse(result, "File uploaded successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to upload file", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to upload file")
     }
   }
 
@@ -21,8 +21,8 @@ export class UploadController {
       }
       const result = await uploadService.extractOcr(fileId)
       return successResponse(result, "Soil test data extracted successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to extract data via OCR", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to extract data via OCR")
     }
   }
 
@@ -33,8 +33,8 @@ export class UploadController {
       }
       const result = await uploadService.directExtractOcr(file, fileName)
       return successResponse(result, "Soil test data extracted successfully")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to process file OCR", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to process file OCR")
     }
   }
 
@@ -45,8 +45,8 @@ export class UploadController {
       }
       const result = await uploadService.extractFromText(text, title)
       return successResponse(result, "Soil test data parsed successfully from text")
-    } catch (err: any) {
-      return errorResponse(err.message || "Failed to parse text", [err])
+    } catch (err) {
+      return errorFromCaught(err, "Failed to parse text")
     }
   }
 }

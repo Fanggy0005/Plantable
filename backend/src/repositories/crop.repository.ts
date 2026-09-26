@@ -1,4 +1,5 @@
 import { prisma } from "../config/db"
+import type { Prisma } from "../generated/prisma"
 import type { CropWithRequirement } from "../services/recommendation-engine.service"
 
 export interface CropFilterParams {
@@ -8,7 +9,7 @@ export interface CropFilterParams {
 
 export class CropRepository {
   async findAll(params?: CropFilterParams): Promise<CropWithRequirement[]> {
-    const where: any = {}
+    const where: Prisma.CropWhereInput = {}
 
     if (params?.search) {
       where.OR = [

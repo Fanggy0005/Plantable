@@ -126,7 +126,6 @@ export interface OcrExtractedSoilData {
     overall: number
   }
   rawText?: string
-  extractedData?: Record<string, any>
 }
 
 // ==========================================

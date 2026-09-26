@@ -154,6 +154,38 @@ describe("Phase 3 - Smart Features (Soil Improvement & OCR) Test Suite", () => {
       expect(extracted.potassium).toBe(55.0)
       expect(extracted.organicMatter).toBe(1.45)
     })
+
+    it("should read values from a text-based PDF content stream", async () => {
+      const pdf = Buffer.from(
+        "%PDF-1.4\n1 0 obj << /Length 120 >>\nstream\n" +
+          "BT /F1 12 Tf (pH: 6.1) Tj (Available N: 110 mg/kg) Tj (Available P: 38 mg/kg) Tj (Exchangeable K: 52 mg/kg) Tj ET" +
+          "\nendstream\nendobj\n%%EOF",
+        "latin1"
+      )
+
+      const extracted = await ocrService.processFile(pdf, "pdf", "report.pdf")
+
+      expect(extracted.ph).toBe(6.1)
+      expect(extracted.nitrogen).toBe(110)
+      expect(extracted.phosphorus).toBe(38)
+      expect(extracted.potassium).toBe(52)
+    })
+
+    it("should never invent values from image bytes", async () => {
+      // Raw bytes that happen to look like "N 120 ... pH 6.5" must not become nutrient values
+      const fakeImage = Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        Buffer.from(" N 120 P 45 K 60 pH 6.5 ", "latin1"),
+      ])
+
+      const extracted = await ocrService.processFile(fakeImage, "image", "photo.png")
+
+      expect(extracted.nitrogen).toBeNull()
+      expect(extracted.phosphorus).toBeNull()
+      expect(extracted.potassium).toBeNull()
+      expect(extracted.ph).toBeNull()
+      expect(extracted.confidence.overall).toBe(0)
+    })
   })
 
   // ==========================================
@@ -275,15 +307,12 @@ describe("Phase 3 - Smart Features (Soil Improvement & OCR) Test Suite", () => {
 
     it("POST /api/uploads and POST /api/ocr by fileId workflow", async () => {
       // Create a test synthetic report via UploadService
-      const sampleText = `
-        LABORATORY TEST REPORT
-        Sample #991
-        pH: 6.1
-        Available N: 110 mg/kg
-        Available P: 38 mg/kg
-        Exchangeable K: 52 mg/kg
-      `
-      const testBlob = new Blob([sampleText], { type: "application/pdf" })
+      const samplePdf =
+        "%PDF-1.4\n1 0 obj << /Length 120 >>\nstream\n" +
+        "BT /F1 12 Tf (LABORATORY TEST REPORT) Tj (Sample #991) Tj (pH: 6.1) Tj (Available N: 110 mg/kg) Tj " +
+        "(Available P: 38 mg/kg) Tj (Exchangeable K: 52 mg/kg) Tj ET" +
+        "\nendstream\nendobj\n%%EOF"
+      const testBlob = new Blob([samplePdf], { type: "application/pdf" })
       const uploaded = await uploadService.handleFileUpload(testBlob, "lab-test-sample.pdf")
 
       expect(uploaded.fileId).toBeDefined()
@@ -306,6 +335,28 @@ describe("Phase 3 - Smart Features (Soil Improvement & OCR) Test Suite", () => {
 
       // Cleanup
       await prisma.uploadedReport.delete({ where: { id: uploaded.fileId } })
+    })
+
+    it("POST /api/ocr with a multipart file upload should parse successfully", async () => {
+      const samplePdf =
+        "%PDF-1.4\n1 0 obj << /Length 80 >>\nstream\n" +
+        "BT (pH: 6.3) Tj (Available N: 95 mg/kg) Tj (Available P: 30 mg/kg) Tj (Exchangeable K: 70 mg/kg) Tj ET" +
+        "\nendstream\nendobj\n%%EOF"
+      const form = new FormData()
+      form.append("file", new File([samplePdf], "multipart-report.pdf", { type: "application/pdf" }))
+
+      const res = await app.handle(new Request("http://localhost/api/ocr", { method: "POST", body: form }))
+
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.success).toBe(true)
+      expect(json.data.ph).toBe(6.3)
+      expect(json.data.nitrogen).toBe(95)
+      expect(json.data.fileName).toBe("multipart-report.pdf")
+
+      if (json.data.fileId) {
+        await prisma.uploadedReport.delete({ where: { id: json.data.fileId } })
+      }
     })
   })
 })
