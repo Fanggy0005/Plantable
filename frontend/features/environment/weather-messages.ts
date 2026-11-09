@@ -16,7 +16,14 @@ export const weatherMessages = defineMessages({
     alerts: "การแจ้งเตือนแปลงเกษตร",
     forecast: "พยากรณ์ล่วงหน้า",
     rain: (mm: number) => `ฝน ${mm} มม.`,
-    severity: { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" } as Record<string, string>,
+    severity: { high: "สูง", medium: "ปานกลาง" } as Record<string, string>,
+    observedAt: (time: string) => `ข้อมูล ณ ${time} น.`,
+    climatologyTitle: "ไม่ใช่ข้อมูลสภาพอากาศจริง",
+    climatologyBody:
+      "ตอนนี้ดึงข้อมูลสภาพอากาศไม่ได้ ตัวเลขด้านล่างเป็นค่าทั่วไปของฤดูกาลนี้ ไม่ใช่ค่าที่วัดได้ จึงไม่มีพยากรณ์และการแจ้งเตือน กดรีเฟรชเพื่อลองใหม่",
+    noAlerts: (days: number) => `ไม่มีฝนหนัก อากาศร้อนจัด หรือช่วงไม่มีฝน ในพยากรณ์ ${days} วันข้างหน้า`,
+    alertBasis:
+      "คำนวณจากพยากรณ์ของ Open-Meteo ด้วยเกณฑ์ฝนและอุณหภูมิของกรมอุตุนิยมวิทยา ไม่ใช่ประกาศเตือนภัยทางการ",
     provinces: {
       nakhon_ratchasima: "นครราชสีมา",
       khon_kaen: "ขอนแก่น",
@@ -45,7 +52,14 @@ export const weatherMessages = defineMessages({
     alerts: "Field alerts",
     forecast: "Forecast",
     rain: (mm: number) => `Rain ${mm} mm`,
-    severity: { high: "High", medium: "Medium", low: "Low" } as Record<string, string>,
+    severity: { high: "High", medium: "Medium" } as Record<string, string>,
+    observedAt: (time: string) => `as of ${time}`,
+    climatologyTitle: "Not live weather data",
+    climatologyBody:
+      "Live weather is unavailable right now. The numbers below are typical for this season, not measurements, so there is no forecast and no alerts. Refresh to try again.",
+    noAlerts: (days: number) => `No heavy rain, extreme heat or dry spell in the ${days}-day forecast.`,
+    alertBasis:
+      "Calculated from the Open-Meteo forecast using Thai Meteorological Department rain and temperature thresholds. Not an official warning.",
     provinces: {
       nakhon_ratchasima: "Nakhon Ratchasima",
       khon_kaen: "Khon Kaen",

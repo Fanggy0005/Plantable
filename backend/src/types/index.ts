@@ -16,25 +16,40 @@ export interface WeatherForecastDay {
   tempMin: number
   precipitationSum: number
   conditionTh: string
+  condition: string
 }
 
+/** Calculated by Plantable from the forecast. Not an official warning. */
 export interface AgriculturalAlert {
-  type: "drought" | "heavy_rain" | "extreme_heat" | "favorable"
+  type: "drought" | "heavy_rain" | "extreme_heat"
+  /** Forecast day the alert is about, when it concerns a single day. */
+  date?: string
   titleTh: string
+  titleEn: string
   messageTh: string
-  severity: "low" | "medium" | "high"
+  messageEn: string
+  severity: "medium" | "high"
 }
+
+/**
+ * `live`: Open-Meteo data. `climatology`: typical values for the season because live
+ * data was unavailable. It has no forecast, no alerts, and no rain or wind values.
+ */
+export type WeatherSource = "live" | "climatology"
 
 export interface WeatherData {
+  source: WeatherSource
+  /** Time of the current observation (Asia/Bangkok); null for climatology. */
+  observedAt: string | null
   province: string
   region: ThaiRegion
   regionTh: string
   temperature: number
   humidity: number
-  precipitation: number
+  precipitation: number | null
   condition: string
   conditionTh: string
-  windSpeed: number
+  windSpeed: number | null
   season: SeasonType
   seasonLabelTh: string
   forecast: WeatherForecastDay[]

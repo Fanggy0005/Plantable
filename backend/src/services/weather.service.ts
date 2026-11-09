@@ -1,10 +1,12 @@
-import type {
-  WeatherData,
-  ThaiRegion,
-  SeasonType,
-  AgriculturalAlert,
-  WeatherForecastDay,
-} from "../types"
+import {
+  DRY_SPELL_MAX_TOTAL_MM,
+  EXTREME_HEAT_MAX_C,
+  FORECAST_DAYS,
+  HEAVY_RAIN_MM_PER_DAY,
+  VERY_HEAVY_RAIN_MM_PER_DAY,
+  WEATHER_TIMEOUT_MS,
+} from "../constants/weather"
+import type { AgriculturalAlert, SeasonType, ThaiRegion, WeatherData, WeatherForecastDay } from "../types"
 
 export interface ProvinceLocation {
   name: string
@@ -129,191 +131,203 @@ export function getSeasonFromType(type?: string | null): { season: SeasonType; l
   return getCurrentSeason()
 }
 
+interface Condition {
+  conditionTh: string
+  condition: string
+}
+
+/** WMO weather interpretation codes, as used by Open-Meteo. */
+export function conditionFromWeatherCode(code: number): Condition {
+  if (code === 0) return { conditionTh: "ท้องฟ้าแจ่มใส", condition: "Clear sky" }
+  if (code >= 1 && code <= 3) return { conditionTh: "มีเมฆบางส่วนถึงเมฆมาก", condition: "Partly cloudy to overcast" }
+  if (code === 45 || code === 48) return { conditionTh: "มีหมอก", condition: "Fog" }
+  if (code >= 51 && code <= 57) return { conditionTh: "ฝนปรอย", condition: "Drizzle" }
+  if (code >= 61 && code <= 67) return { conditionTh: "ฝนตก", condition: "Rain" }
+  if (code >= 80 && code <= 82) return { conditionTh: "ฝนตกเป็นช่วง ๆ", condition: "Rain showers" }
+  if (code >= 95 && code <= 99) return { conditionTh: "พายุฝนฟ้าคะนอง", condition: "Thunderstorm" }
+  return { conditionTh: "ไม่ทราบสภาพอากาศ", condition: "Unknown" }
+}
+
+interface OpenMeteoResponse {
+  current: {
+    time: string
+    temperature_2m: number
+    relative_humidity_2m: number
+    precipitation: number
+    weather_code: number
+    wind_speed_10m: number
+  }
+  daily: {
+    time: string[]
+    weather_code: number[]
+    temperature_2m_max: number[]
+    temperature_2m_min: number[]
+    precipitation_sum: number[]
+  }
+}
+
+function isOpenMeteoResponse(json: unknown): json is OpenMeteoResponse {
+  const j = json as Partial<OpenMeteoResponse> | null
+  return (
+    typeof j?.current?.temperature_2m === "number" &&
+    typeof j.current.relative_humidity_2m === "number" &&
+    Array.isArray(j.daily?.time) &&
+    Array.isArray(j.daily.precipitation_sum) &&
+    Array.isArray(j.daily.temperature_2m_max) &&
+    Array.isArray(j.daily.temperature_2m_min) &&
+    Array.isArray(j.daily.weather_code)
+  )
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10
+}
+
+/**
+ * Builds field alerts from the daily forecast. Returns an empty list when nothing
+ * needs attention: the app never claims the weather is "good for crops".
+ */
+export function evaluateAgriculturalAlerts(forecast: WeatherForecastDay[], season: SeasonType): AgriculturalAlert[] {
+  const alerts: AgriculturalAlert[] = []
+
+  const rainDay = forecast.find((d) => d.precipitationSum >= HEAVY_RAIN_MM_PER_DAY)
+  if (rainDay) {
+    const veryHeavy = rainDay.precipitationSum >= VERY_HEAVY_RAIN_MM_PER_DAY
+    alerts.push({
+      type: "heavy_rain",
+      date: rainDay.date,
+      severity: veryHeavy ? "high" : "medium",
+      titleTh: veryHeavy ? "พยากรณ์ฝนตกหนักมาก" : "พยากรณ์ฝนตกหนัก",
+      titleEn: veryHeavy ? "Very heavy rain forecast" : "Heavy rain forecast",
+      messageTh: `คาดว่าฝนจะตกประมาณ ${rainDay.precipitationSum} มม. ภายในวันเดียว ควรเปิดทางระบายน้ำในแปลง และเลื่อนการใส่ปุ๋ยออกไปจนกว่าฝนจะหยุด`,
+      messageEn: `About ${rainDay.precipitationSum} mm of rain is expected in one day. Clear the field drains and hold off on fertilizer until the rain stops.`,
+    })
+  }
+
+  const hotDay = forecast.find((d) => d.tempMax >= EXTREME_HEAT_MAX_C)
+  if (hotDay) {
+    alerts.push({
+      type: "extreme_heat",
+      date: hotDay.date,
+      severity: "medium",
+      titleTh: "พยากรณ์อากาศร้อนจัด",
+      titleEn: "Extreme heat forecast",
+      messageTh: `คาดว่าอุณหภูมิสูงสุดจะถึง ${hotDay.tempMax}°C ควรให้น้ำช่วงเช้าตรู่หรือเย็น และคลุมหน้าดินเพื่อลดการระเหยของน้ำ`,
+      messageEn: `The maximum temperature is expected to reach ${hotDay.tempMax}°C. Water early in the morning or in the evening, and mulch to reduce evaporation.`,
+    })
+  }
+
+  const totalRain = forecast.reduce((sum, d) => sum + d.precipitationSum, 0)
+  if (season === "summer" && forecast.length > 0 && totalRain < DRY_SPELL_MAX_TOTAL_MM) {
+    alerts.push({
+      type: "drought",
+      severity: "medium",
+      titleTh: "ไม่มีฝนในช่วงพยากรณ์",
+      titleEn: "No rain in the forecast",
+      messageTh: `พยากรณ์ ${forecast.length} วันข้างหน้าแทบไม่มีฝน ควรวางแผนให้น้ำ และคลุมหน้าดินด้วยฟางหรือหญ้าแห้ง`,
+      messageEn: `Almost no rain is forecast for the next ${forecast.length} days. Plan irrigation and mulch the soil with straw or dry grass.`,
+    })
+  }
+
+  return alerts
+}
+
+/** Typical conditions by season. Used only when live data is unavailable, and labelled as such. */
+const SEASONAL_TYPICAL: Record<SeasonType, { temperature: number; humidity: number }> = {
+  rainy: { temperature: 29, humidity: 82 },
+  winter: { temperature: 25, humidity: 60 },
+  summer: { temperature: 36, humidity: 55 },
+}
+
+type WeatherBase = Pick<WeatherData, "province" | "region" | "regionTh" | "season" | "seasonLabelTh">
+
 export class WeatherService {
-  /**
-   * Resolve province key or return default (Nakhon Ratchasima - Central/Isan hub)
-   */
+  /** Resolve a province key or name, or return the default (Nakhon Ratchasima). */
   resolveLocation(provinceQuery?: string | null): ProvinceLocation {
-    if (!provinceQuery) return THAI_PROVINCES.nakhon_ratchasima
+    const fallback = THAI_PROVINCES.nakhon_ratchasima as ProvinceLocation
+    if (!provinceQuery) return fallback
 
     const query = provinceQuery.toLowerCase().trim()
     for (const [key, loc] of Object.entries(THAI_PROVINCES)) {
-      if (
-        key === query ||
-        loc.name.toLowerCase().includes(query) ||
-        loc.nameTh.includes(query)
-      ) {
+      if (key === query || loc.name.toLowerCase().includes(query) || loc.nameTh.includes(query)) {
         return loc
       }
     }
-
-    return THAI_PROVINCES.nakhon_ratchasima
+    return fallback
   }
 
-  /**
-   * Fetch live weather data from Open-Meteo or use climatological fallback
-   */
+  /** Live weather from Open-Meteo, or seasonal typical values (`source: "climatology"`) if that fails. */
   async getWeatherData(provinceQuery?: string | null): Promise<WeatherData> {
     const loc = this.resolveLocation(provinceQuery)
     const { season, labelTh: seasonLabelTh } = getCurrentSeason()
+    const base: WeatherBase = { province: loc.nameTh, region: loc.region, regionTh: loc.regionTh, season, seasonLabelTh }
 
-    try {
-      // 5-second timeout for Open-Meteo API
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 4000)
+    const live = await this.fetchOpenMeteo(loc)
+    if (!live) return this.getClimatologicalFallback(base)
 
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FBangkok`
-      const res = await fetch(url, { signal: controller.signal })
-      clearTimeout(timeout)
-
-      if (res.ok) {
-        const json = await res.json()
-        const current = json.current
-        const daily = json.daily
-
-        const alerts = this.evaluateAgriculturalAlerts(
-          current.temperature_2m,
-          current.relative_humidity_2m,
-          current.precipitation,
-          season
-        )
-
-        const forecast: WeatherForecastDay[] = (daily.time || []).slice(0, 5).map((date: string, idx: number) => ({
-          date,
-          tempMax: Math.round(daily.temperature_2m_max[idx] || 32),
-          tempMin: Math.round(daily.temperature_2m_min[idx] || 24),
-          precipitationSum: Number((daily.precipitation_sum[idx] || 0).toFixed(1)),
-          conditionTh: daily.precipitation_sum[idx] > 5 ? "มีฝนตกชุก" : "ท้องฟ้าโปร่งถึงมีเมฆบางส่วน",
-        }))
-
-        return {
-          province: loc.nameTh,
-          region: loc.region,
-          regionTh: loc.regionTh,
-          temperature: Math.round(current.temperature_2m),
-          humidity: Math.round(current.relative_humidity_2m),
-          precipitation: current.precipitation || 0,
-          condition: current.precipitation > 2 ? "Rainy" : "Fair / Partly Cloudy",
-          conditionTh: current.precipitation > 2 ? "มีฝนตก" : "สภาพอากาศโปร่ง เหมาะแก่การทำการเกษตร",
-          windSpeed: Number((current.wind_speed_10m || 8).toFixed(1)),
-          season,
-          seasonLabelTh,
-          forecast,
-          agriculturalAlerts: alerts,
-        }
-      }
-    } catch {
-      // Fall through to fallback
-    }
-
-    // Climatological normal fallback
-    return this.getClimatologicalFallback(loc, season, seasonLabelTh)
-  }
-
-  private getClimatologicalFallback(
-    loc: ProvinceLocation,
-    season: SeasonType,
-    seasonLabelTh: string
-  ): WeatherData {
-    let temp = 30
-    let humidity = 70
-    let precipitation = 0
-
-    if (season === "rainy") {
-      temp = 29
-      humidity = 82
-      precipitation = 4.5
-    } else if (season === "winter") {
-      temp = 25
-      humidity = 60
-      precipitation = 0.2
-    } else {
-      // summer
-      temp = 36
-      humidity = 55
-      precipitation = 0.5
-    }
-
-    const alerts = this.evaluateAgriculturalAlerts(temp, humidity, precipitation, season)
-    const today = new Date()
-
-    const forecast: WeatherForecastDay[] = Array.from({ length: 5 }, (_, i) => {
-      const d = new Date(today)
-      d.setDate(today.getDate() + i)
-      return {
-        date: d.toISOString().split("T")[0],
-        tempMax: temp + 2,
-        tempMin: temp - 5,
-        precipitationSum: precipitation,
-        conditionTh: precipitation > 2 ? "โอกาสเกิดฝนตกปานกลาง" : "อากาศแจ่มใส ทัศนวิสัยดี",
-      }
-    })
+    const { current, daily } = live
+    const forecast: WeatherForecastDay[] = daily.time.slice(0, FORECAST_DAYS).map((date, i) => ({
+      date,
+      tempMax: Math.round(daily.temperature_2m_max[i] ?? 0),
+      tempMin: Math.round(daily.temperature_2m_min[i] ?? 0),
+      precipitationSum: round1(daily.precipitation_sum[i] ?? 0),
+      ...conditionFromWeatherCode(daily.weather_code[i] ?? -1),
+    }))
 
     return {
-      province: loc.nameTh,
-      region: loc.region,
-      regionTh: loc.regionTh,
-      temperature: temp,
-      humidity,
-      precipitation,
-      condition: precipitation > 0 ? "Scattered Showers" : "Clear Sky",
-      conditionTh: precipitation > 0 ? "มีฝนกระจายบางพื้นที่" : "สภาพอากาศแจ่มใสปกติ",
-      windSpeed: 10.5,
-      season,
-      seasonLabelTh,
+      ...base,
+      source: "live",
+      observedAt: current.time ?? null,
+      temperature: round1(current.temperature_2m),
+      humidity: Math.round(current.relative_humidity_2m),
+      precipitation: round1(current.precipitation ?? 0),
+      windSpeed: round1(current.wind_speed_10m ?? 0),
+      ...conditionFromWeatherCode(current.weather_code ?? -1),
       forecast,
-      agriculturalAlerts: alerts,
+      agriculturalAlerts: evaluateAgriculturalAlerts(forecast, season),
+    }
+  }
+
+  private async fetchOpenMeteo(loc: ProvinceLocation): Promise<OpenMeteoResponse | null> {
+    const params = new URLSearchParams({
+      latitude: String(loc.lat),
+      longitude: String(loc.lon),
+      current: "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
+      forecast_days: String(FORECAST_DAYS),
+      timezone: "Asia/Bangkok",
+    })
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+        signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS),
+      })
+      if (!res.ok) return null
+      const json: unknown = await res.json()
+      return isOpenMeteoResponse(json) ? json : null
+    } catch {
+      return null
     }
   }
 
   /**
-   * Evaluate weather risks and generate agricultural warnings
+   * Typical values for the season, not a measurement. No forecast, alerts, rain or wind
+   * are returned: they would be invented.
    */
-  evaluateAgriculturalAlerts(
-    temperature: number,
-    humidity: number,
-    precipitation: number,
-    season: SeasonType
-  ): AgriculturalAlert[] {
-    const alerts: AgriculturalAlert[] = []
-
-    if (precipitation > 25) {
-      alerts.push({
-        type: "heavy_rain",
-        titleTh: "แจ้งเตือน: ฝนตกหนักเสี่ยงน้ำท่วมขัง",
-        messageTh: "ปริมาณน้ำฝนสะสมสูง ควรตรวจระบบระบายน้ำในร่องแปลงเพื่อป้องกันโรครากเน่าและโคนเน่า",
-        severity: "high",
-      })
+  private getClimatologicalFallback(base: WeatherBase): WeatherData {
+    const typical = SEASONAL_TYPICAL[base.season]
+    return {
+      ...base,
+      source: "climatology",
+      observedAt: null,
+      temperature: typical.temperature,
+      humidity: typical.humidity,
+      precipitation: null,
+      windSpeed: null,
+      conditionTh: "ค่าทั่วไปของฤดูกาล ไม่ใช่ข้อมูลจริง",
+      condition: "Typical for the season, not live data",
+      forecast: [],
+      agriculturalAlerts: [],
     }
-
-    if (temperature > 37) {
-      alerts.push({
-        type: "extreme_heat",
-        titleTh: "แจ้งเตือน: สภาพอากาศร้อนจัด (Heat Stress)",
-        messageTh: "อุณหภูมิสูงกว่า 37°C พืชอาจคายน้ำรวดเร็วและดอกร่วง ควรให้น้ำเพิ่มขึ้นในช่วงเช้าตรู่หรือเย็น",
-        severity: "medium",
-      })
-    }
-
-    if (season === "summer" && precipitation < 1 && humidity < 50) {
-      alerts.push({
-        type: "drought",
-        titleTh: "ข้อควรระวัง: สภาวะฝนทิ้งช่วงและแล้ง",
-        messageTh: "ความชื้นในบรรยากาศต่ำ ควรรักษาหน้าดินด้วยฟางข้าวหรือหญ้าแห้งเพื่อลดการระเหยของน้ำ",
-        severity: "medium",
-      })
-    }
-
-    if (alerts.length === 0) {
-      alerts.push({
-        type: "favorable",
-        titleTh: "สภาพอากาศเอื้ออำนวยต่อการเพาะปลูก",
-        messageTh: "อุณหภูมิและความชื้นสัมพัทธ์อยู่ในเกณฑ์สมดุล พืชสามารถสังเคราะห์แสงและดูดซึมปุ๋ยได้ดีเยี่ยม",
-        severity: "low",
-      })
-    }
-
-    return alerts
   }
 }
 

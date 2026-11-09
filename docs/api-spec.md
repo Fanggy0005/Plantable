@@ -305,6 +305,13 @@ Each item from the list and create endpoints is an `AnalysisSummary`: `{ id, plo
 | GET    | /api/environment/provinces  | Province list grouped by region |
 | GET    | /api/environment/weather    | Weather by `province`           |
 
+`GET /api/environment/weather` always says where its numbers come from:
+
+* `source: "live"`: Open-Meteo current conditions (`observedAt`) and a 5-day `forecast`. `agriculturalAlerts` are calculated from the daily forecast with Thai Meteorological Department thresholds (heavy rain ≥ 35.1 mm/day, very heavy ≥ 90.1 mm/day, extreme heat ≥ 40 °C) plus a hot-season dry-spell check. Thresholds live in `backend/src/constants/weather.ts`. An empty list means nothing to flag; there is no "favorable weather" alert.
+* `source: "climatology"`: Open-Meteo failed or timed out (4 s). `temperature` and `humidity` are typical values for the season, `precipitation`, `windSpeed` and `observedAt` are `null`, and `forecast` and `agriculturalAlerts` are empty. The UI must label this as not live data.
+
+Alerts are Plantable's own calculation, not official warnings, and carry both Thai and English text (`titleTh`/`titleEn`, `messageTh`/`messageEn`).
+
 ---
 
 # Removed endpoints (v1)

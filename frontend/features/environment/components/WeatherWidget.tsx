@@ -3,10 +3,11 @@
 import { useEffect, useEffectEvent, useState } from "react"
 import {
   AlertTriangle,
-  CheckCircle2,
+  CloudOff,
   CloudRain,
   CloudSun,
   Droplets,
+  Info,
   MapPin,
   RefreshCw,
   Sun,
@@ -55,7 +56,6 @@ const SEASON_STYLE: Record<string, { icon: LucideIcon; variant: "info" | "second
 const ALERT_STYLE = {
   high: { box: "bg-danger-soft border-destructive/20", text: "text-destructive", badge: "destructive" },
   medium: { box: "bg-warning-soft border-warning/25", text: "text-warning", badge: "warning" },
-  low: { box: "bg-success-soft border-success/20", text: "text-success", badge: "success" },
 } as const
 
 function MetricTile({
@@ -68,7 +68,8 @@ function MetricTile({
 }: {
   icon: LucideIcon
   label: string
-  value: number
+  /** null: not available (seasonal estimate) */
+  value: number | null
   decimals?: number
   unit: string
   tone: string
@@ -81,8 +82,14 @@ function MetricTile({
       <div className="min-w-0">
         <p className="truncate text-[11px] text-muted-foreground">{label}</p>
         <p className="text-lg leading-tight font-bold text-foreground">
-          <CountUp value={value} decimals={decimals} />
-          <span className="ml-0.5 text-xs font-medium text-muted-foreground">{unit}</span>
+          {value === null ? (
+            <span className="text-muted-foreground">–</span>
+          ) : (
+            <>
+              <CountUp value={value} decimals={decimals} />
+              <span className="ml-0.5 text-xs font-medium text-muted-foreground">{unit}</span>
+            </>
+          )}
         </p>
       </div>
     </div>
@@ -212,6 +219,16 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
           <ErrorState title={t.loadError} description={error.message || undefined} onRetry={reload} />
         ) : weather ? (
           <div className={cn("space-y-5 transition-opacity", loading && "opacity-60")}>
+            {weather.source === "climatology" && (
+              <div role="status" className="flex items-start gap-3 rounded-xl border border-warning/25 bg-warning-soft p-3.5">
+                <CloudOff className="mt-0.5 size-4 shrink-0 text-warning" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-warning">{t.climatologyTitle}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t.climatologyBody}</p>
+                </div>
+              </div>
+            )}
+
             <Stagger immediate className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StaggerItem>
                 <MetricTile icon={Thermometer} label={t.temperature} value={weather.temperature} decimals={1} unit="°C" tone="bg-danger-soft text-chart-5" />
@@ -240,6 +257,9 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                 {fmt.locale === "en" && weather.condition && (
                   <span className="truncate text-muted-foreground">· {weather.condition}</span>
                 )}
+                {weather.source === "live" && weather.observedAt && (
+                  <span className="shrink-0 text-muted-foreground">· {t.observedAt(weather.observedAt.slice(11, 16))}</span>
+                )}
               </div>
               {season && SeasonIcon && (
                 <Badge variant={season.variant} className="py-1">
@@ -249,29 +269,45 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
               )}
             </div>
 
-            {weather.agriculturalAlerts?.length > 0 && (
+            {weather.source === "live" && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">{t.alerts}</p>
-                <Stagger immediate className="grid gap-2 md:grid-cols-2">
-                  {weather.agriculturalAlerts.map((alert, idx) => {
-                    const style = ALERT_STYLE[alert.severity] ?? ALERT_STYLE.low
-                    const Icon = alert.severity === "low" ? CheckCircle2 : AlertTriangle
-                    return (
-                      <StaggerItem key={idx} className={cn("flex items-start gap-3 rounded-xl border p-3.5", style.box)}>
-                        <Icon className={cn("mt-0.5 size-4 shrink-0", style.text)} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={cn("text-sm font-semibold", style.text)}>{alert.titleTh}</p>
-                            <Badge variant={style.badge} className="shrink-0">
-                              {t.severity[alert.severity] ?? alert.severity}
-                            </Badge>
+                {weather.agriculturalAlerts.length === 0 ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-3.5">
+                    <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <p className="text-xs leading-relaxed text-muted-foreground">{t.noAlerts(weather.forecast.length)}</p>
+                  </div>
+                ) : (
+                  <Stagger immediate className="grid gap-2 md:grid-cols-2">
+                    {weather.agriculturalAlerts.map((alert, idx) => {
+                      const style = ALERT_STYLE[alert.severity] ?? ALERT_STYLE.medium
+                      return (
+                        <StaggerItem key={idx} className={cn("flex items-start gap-3 rounded-xl border p-3.5", style.box)}>
+                          <AlertTriangle className={cn("mt-0.5 size-4 shrink-0", style.text)} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={cn("text-sm font-semibold", style.text)}>
+                                {fmt.pick(alert.titleTh, alert.titleEn)}
+                              </p>
+                              <Badge variant={style.badge} className="shrink-0">
+                                {t.severity[alert.severity] ?? alert.severity}
+                              </Badge>
+                            </div>
+                            {alert.date && (
+                              <p className="mt-0.5 text-[11px] font-medium text-foreground/70">
+                                {fmt.date(alert.date, { weekday: "long", day: "numeric", month: "short" })}
+                              </p>
+                            )}
+                            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                              {fmt.pick(alert.messageTh, alert.messageEn)}
+                            </p>
                           </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{alert.messageTh}</p>
-                        </div>
-                      </StaggerItem>
-                    )
-                  })}
-                </Stagger>
+                        </StaggerItem>
+                      )
+                    })}
+                  </Stagger>
+                )}
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{t.alertBasis}</p>
               </div>
             )}
 
@@ -295,11 +331,12 @@ export function WeatherWidget({ initialProvince = "nakhon_ratchasima", onLocatio
                         <span className="font-bold text-foreground">{day.tempMax}°</span>
                         <span className="ml-1 text-xs text-muted-foreground">{day.tempMin}°</span>
                       </p>
-                      {fmt.locale === "th" && (
-                        <p className="line-clamp-1 text-[10px] text-muted-foreground" title={day.conditionTh}>
-                          {day.conditionTh}
-                        </p>
-                      )}
+                      <p
+                        className="line-clamp-1 text-[10px] text-muted-foreground"
+                        title={fmt.pick(day.conditionTh, day.condition)}
+                      >
+                        {fmt.pick(day.conditionTh, day.condition)}
+                      </p>
                       {day.precipitationSum > 0 && (
                         <span className="text-[10px] font-medium text-info">{t.rain(day.precipitationSum)}</span>
                       )}
