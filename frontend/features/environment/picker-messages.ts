@@ -3,9 +3,7 @@ import { defineMessages } from "@/lib/i18n/config"
 export const pickerMessages = defineMessages({
   th: {
     province: "จังหวัดที่เพาะปลูก",
-    provinceHint: "ใช้ประเมินสภาพอากาศและแหล่งน้ำ",
-    season: "ฤดูที่วางแผนปลูก",
-    seasonHint: "ปรับเกณฑ์ตามปริมาณฝนและอุณหภูมิ",
+    provinceHint: "ใช้แสดงสภาพอากาศของแปลง",
     regions: {
       north: "ภาคเหนือ",
       northeast: "ภาคตะวันออกเฉียงเหนือ",
@@ -27,17 +25,10 @@ export const pickerMessages = defineMessages({
       songkhla: "สงขลา",
       kanchanaburi: "กาญจนบุรี",
     } as Record<string, string>,
-    seasons: {
-      rainy: { label: "ฤดูฝน", months: "พ.ค. – ต.ค.", desc: "น้ำสมบูรณ์ เหมาะนาข้าวและพืชไร่" },
-      winter: { label: "ฤดูหนาว", months: "พ.ย. – ก.พ.", desc: "อากาศเย็น เหมาะผักและข้าวโพดหลังนา" },
-      summer: { label: "ฤดูร้อน", months: "มี.ค. – เม.ย.", desc: "แดดจัด เหมาะพืชทนแล้ง" },
-    } as Record<string, { label: string; months: string; desc: string }>,
   },
   en: {
     province: "Growing province",
-    provinceHint: "Used to assess climate and water supply",
-    season: "Planned season",
-    seasonHint: "Adjusts for rainfall and temperature",
+    provinceHint: "Used to show the weather for your plot",
     regions: {
       north: "North",
       northeast: "Northeast",
@@ -59,10 +50,5 @@ export const pickerMessages = defineMessages({
       songkhla: "Songkhla",
       kanchanaburi: "Kanchanaburi",
     } as Record<string, string>,
-    seasons: {
-      rainy: { label: "Rainy season", months: "May – Oct", desc: "Ample water for rice and field crops" },
-      winter: { label: "Winter", months: "Nov – Feb", desc: "Cool weather for vegetables and off-season corn" },
-      summer: { label: "Summer", months: "Mar – Apr", desc: "Hot and dry, for drought-tolerant crops" },
-    } as Record<string, { label: string; months: string; desc: string }>,
   },
 })

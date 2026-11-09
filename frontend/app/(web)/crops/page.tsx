@@ -174,17 +174,7 @@ function CropCard({ crop }: { crop: Crop }) {
   const t = useT(cropCatalogMessages).list
   const common = useT(commonMessages)
   const { pick, locale } = useFormat()
-  const req = crop.requirement
   const secondaryName = locale === "th" ? crop.name : crop.nameTh
-
-  const chips = req
-    ? [
-        { key: "N", label: common.nutrients.nitrogen, optimal: req.nitrogenOptimal, min: req.nitrogenMin, max: req.nitrogenMax },
-        { key: "P", label: common.nutrients.phosphorus, optimal: req.phosphorusOptimal, min: req.phosphorusMin, max: req.phosphorusMax },
-        { key: "K", label: common.nutrients.potassium, optimal: req.potassiumOptimal, min: req.potassiumMin, max: req.potassiumMax },
-        { key: "pH", label: common.nutrients.ph, optimal: req.phOptimal, min: req.phMin, max: req.phMax },
-      ]
-    : []
 
   return (
     <Link
@@ -215,21 +205,7 @@ function CropCard({ crop }: { crop: Crop }) {
         <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{crop.description}</p>
       )}
 
-      {chips.length > 0 && (
-        <div className="mt-4 grid grid-cols-4 gap-1.5 border-t border-border pt-4">
-          {chips.map((c) => (
-            <div key={c.key} title={`${c.label}: ${c.min}–${c.max}`} className="rounded-lg bg-muted px-2 py-1.5 text-center">
-              <span className="block text-[11px] font-semibold text-muted-foreground">{c.key}</span>
-              <span className="block text-sm font-bold tabular-nums text-foreground">{c.optimal}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-auto flex items-center justify-between pt-4 text-sm font-semibold text-primary">
-        <span className="text-xs font-medium text-muted-foreground">
-          {t.optimal} · {common.units.mgPerKg}
-        </span>
+      <div className="mt-auto flex items-center justify-end pt-4 text-sm font-semibold text-primary">
         <span className="inline-flex items-center gap-1">
           {t.viewGuide}
           <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />

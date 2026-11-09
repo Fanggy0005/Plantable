@@ -57,6 +57,21 @@ export const commonMessages = defineMessages({
       winter: "ฤดูหนาว",
       summer: "ฤดูร้อน",
     } as Record<string, string>,
+    landTypes: { lowland: "ที่ลุ่ม/นา", upland: "ที่ดอน" },
+    waterSupplies: {
+      rainfed: "อาศัยน้ำฝน",
+      seasonal_irrigation: "มีน้ำชลประทานบางฤดู",
+      year_round: "มีน้ำทั้งปี",
+    },
+    soilTextures: { clay: "ดินเหนียว", loam: "ดินร่วน", sandy: "ดินทราย" },
+    nutrientLevels: { low: "ต่ำ", medium: "ปานกลาง", high: "สูง" },
+    difficulties: {
+      easy: "ปรับง่าย",
+      moderate: "ปรับปานกลาง",
+      hard: "ปรับยาก",
+      not_feasible: "ปรับไม่คุ้ม",
+    },
+    planModes: { chemical: "ปุ๋ยเคมี", organic: "อินทรีย์", combined: "ผสมผสาน" },
   },
   en: {
     brand: "Plantable",
@@ -113,5 +128,20 @@ export const commonMessages = defineMessages({
       winter: "Winter",
       summer: "Summer",
     } as Record<string, string>,
+    landTypes: { lowland: "Lowland / paddy", upland: "Upland" },
+    waterSupplies: {
+      rainfed: "Rainfed only",
+      seasonal_irrigation: "Seasonal irrigation",
+      year_round: "Water all year",
+    },
+    soilTextures: { clay: "Clay", loam: "Loam", sandy: "Sandy" },
+    nutrientLevels: { low: "Low", medium: "Medium", high: "High" },
+    difficulties: {
+      easy: "Easy fix",
+      moderate: "Moderate fix",
+      hard: "Hard fix",
+      not_feasible: "Not worth fixing",
+    },
+    planModes: { chemical: "Chemical", organic: "Organic", combined: "Combined" },
   },
 })

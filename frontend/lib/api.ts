@@ -1,406 +1,99 @@
 import type {
-  SoilInput,
-  AnalysisResult,
   Crop,
-  SoilImprovementPlan,
-  OcrExtractedSoilData,
-  WeatherData,
-  RegionalCropSuitability,
-  CropEconomics,
-  AnalyticsDashboardData,
-  AnalysisRecommendationDto,
-  AnalysisHistoryItem,
-  LocalHistoryEntry,
+  CropDetail,
+  RecommendationResult,
+  SiteInput,
+  SoilInput,
+  SoilPlan,
+  SoilPlanRequest,
   UserProfile,
+  WeatherData,
 } from "../types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-export async function recommendPlants(soil: SoilInput): Promise<AnalysisResult> {
-  const res = await fetch(`${API_URL}/api/analysis/recommend`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(soil),
-    credentials: "include",
-  })
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}))
-    throw new Error(errorBody.message || "Failed to fetch recommendations")
-  }
-
-  const data: AnalysisResult = await res.json()
-
-  // Also auto-save to browser local history so guest tests are never lost!
-  try {
-    if (typeof window !== "undefined") {
-      const stored: LocalHistoryEntry[] = JSON.parse(localStorage.getItem("plantable_local_history") || "[]")
-      const newEntry: LocalHistoryEntry = {
-        id: data.analysisId || `local-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        soil: data.soil,
-        recommendations: data.rankings?.slice(0, 3)?.map((r) => ({
-          crop: { name: r.name, nameTh: r.nameTh },
-          suitabilityScore: r.score,
-          recommendationLevel: r.level || "Good",
-        })),
-        fullResult: data,
-      }
-      localStorage.setItem("plantable_local_history", JSON.stringify([newEntry, ...stored].slice(0, 20)))
-    }
-  } catch (e) {
-    console.error("Local history cache error:", e)
-  }
-
-  return data
+interface ApiEnvelope<T> {
+  success: boolean
+  message: string
+  data?: T
+  errors?: { path?: string; message?: string }[]
 }
 
-export async function fetchCrops(params?: { search?: string; category?: string }): Promise<Crop[]> {
+/** An error response from the API, with the server's message and validation details. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly errors: ApiEnvelope<unknown>["errors"] = []
+  ) {
+    super(message)
+  }
+}
+
+/** Calls the API and unwraps the `{ success, message, data }` envelope. */
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: init.body ? { "Content-Type": "application/json", ...init.headers } : init.headers,
+    credentials: "include",
+  })
+  const body = (await res.json().catch(() => null)) as ApiEnvelope<T> | null
+
+  if (!res.ok || !body?.success) {
+    const detail = body?.errors?.[0]?.message
+    const message = body?.message ?? `Request failed (${res.status})`
+    throw new ApiError(res.status, detail ? `${message}: ${detail}` : message, body?.errors)
+  }
+  return body.data as T
+}
+
+const post = <T>(path: string, data: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(data) })
+
+// ------------------------------------------------------------------
+// Recommendations and soil plans (public, stateless)
+// ------------------------------------------------------------------
+
+export function recommendCrops(site: SiteInput, soil: SoilInput): Promise<RecommendationResult> {
+  return post("/api/recommendations", { site, soil })
+}
+
+export function buildSoilPlan(plan: SoilPlanRequest): Promise<SoilPlan> {
+  return post("/api/soil-plans", plan)
+}
+
+// ------------------------------------------------------------------
+// Crops (public)
+// ------------------------------------------------------------------
+
+export function fetchCrops(params?: { search?: string; category?: string }): Promise<Crop[]> {
   const query = new URLSearchParams()
   if (params?.search) query.set("search", params.search)
   if (params?.category && params.category !== "All") query.set("category", params.category)
-
-  const url = `${API_URL}/api/crops${query.toString() ? `?${query.toString()}` : ""}`
-  const res = await fetch(url)
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch crops")
-  }
-
-  const json = await res.json()
-  return json.data || []
+  const qs = query.toString()
+  return request(`/api/crops${qs ? `?${qs}` : ""}`)
 }
 
-export async function fetchCropById(id: string): Promise<Crop> {
-  const res = await fetch(`${API_URL}/api/crops/${id}`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch crop detail")
-  }
-
-  const json = await res.json()
-  return json.data
+export function fetchCropById(id: string): Promise<CropDetail> {
+  return request(`/api/crops/${id}`)
 }
 
-export async function fetchAnalysisById(id: string): Promise<AnalysisResult> {
-  const res = await fetch(`${API_URL}/api/analyses/${id}`, {
-    credentials: "include",
-  })
-  if (!res.ok) {
-    throw new Error("Failed to fetch analysis detail")
-  }
+// ------------------------------------------------------------------
+// Users (auth)
+// ------------------------------------------------------------------
 
-  const json = await res.json()
-  const data: {
-    analysisId: string
-    createdAt: string
-    soil: SoilInput
-    recommendations: AnalysisRecommendationDto[]
-    soilImprovement?: SoilImprovementPlan
-  } = json.data
-  return {
-    analysisId: data.analysisId,
-    createdAt: data.createdAt,
-    soil: data.soil,
-    rankings: data.recommendations.map((r) => ({
-      plantId: r.cropId,
-      name: r.cropName,
-      nameTh: r.cropNameTh,
-      scientificName: r.scientificName,
-      category: r.category,
-      description: r.description ?? "",
-      imageUrl: r.imageUrl,
-      score: r.score,
-      level: r.level,
-      breakdown: r.breakdown,
-      reasons: r.reasons,
-      improvements: r.improvementSuggestions,
-      cropRequirement: r.cropRequirement,
-    })),
-    soilImprovement: data.soilImprovement,
-  }
+export function fetchUserProfile(): Promise<UserProfile> {
+  return request("/api/users/me")
 }
 
-export async function fetchUserHistory(): Promise<AnalysisHistoryItem[]> {
-  const res = await fetch(`${API_URL}/api/analyses/history`, {
-    credentials: "include",
-  })
-  if (!res.ok) {
-    return []
-  }
-  const json = await res.json()
-  return json.data || []
+export function updateUserProfile(data: { name: string }): Promise<UserProfile> {
+  return request("/api/users/me", { method: "PATCH", body: JSON.stringify(data) })
 }
 
-export async function deleteAnalysis(id: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/analyses/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  })
-  return res.ok
-}
+// ------------------------------------------------------------------
+// Environment (public)
+// ------------------------------------------------------------------
 
-export async function claimAnalysis(id: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/analyses/${id}/claim`, {
-    method: "POST",
-    credentials: "include",
-  })
-  return res.ok
-}
-
-export async function fetchUserProfile(): Promise<UserProfile> {
-  const res = await fetch(`${API_URL}/api/users/me`, {
-    credentials: "include",
-  })
-  if (!res.ok) {
-    throw new Error("Failed to fetch profile")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function updateUserProfile(data: {
-  name?: string
-  image?: string
-}): Promise<Omit<UserProfile, "createdAt" | "_count">> {
-  const res = await fetch(`${API_URL}/api/users/me`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    credentials: "include",
-  })
-  if (!res.ok) {
-    throw new Error("Failed to update profile")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchFavorites(): Promise<Crop[]> {
-  const res = await fetch(`${API_URL}/api/favorites`, {
-    credentials: "include",
-  })
-  if (!res.ok) return []
-  const json = await res.json()
-  return json.data || []
-}
-
-export async function addFavorite(cropId: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/favorites`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cropId }),
-    credentials: "include",
-  })
-  return res.ok
-}
-
-export async function removeFavorite(cropId: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/favorites/${cropId}`, {
-    method: "DELETE",
-    credentials: "include",
-  })
-  return res.ok
-}
-
-export async function uploadSoilReport(file: File): Promise<{
-  fileId: string
-  fileUrl: string
-  fileName: string
-  fileType: string
-  fileSize: number
-}> {
-  const formData = new FormData()
-  formData.append("file", file)
-
-  const res = await fetch(`${API_URL}/api/uploads`, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
-  })
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}))
-    throw new Error(errorBody.message || "Failed to upload soil report")
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function extractOcrData(params: {
-  fileId?: string
-  text?: string
-  file?: File
-  title?: string
-}): Promise<OcrExtractedSoilData> {
-  let res: Response
-
-  if (params.file) {
-    const formData = new FormData()
-    formData.append("file", params.file)
-    res = await fetch(`${API_URL}/api/ocr`, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    })
-  } else {
-    res = await fetch(`${API_URL}/api/ocr`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-      credentials: "include",
-    })
-  }
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}))
-    throw new Error(errorBody.message || "Failed to extract soil data via OCR")
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchSoilImprovement(
-  soil: SoilInput,
-  cropId?: string
-): Promise<SoilImprovementPlan> {
-  const res = await fetch(`${API_URL}/api/soil-improvement`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...soil, cropId }),
-    credentials: "include",
-  })
-
-  if (!res.ok) {
-    throw new Error("Failed to generate soil improvement plan")
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchAnalysisSoilImprovement(
-  analysisId: string,
-  cropId?: string
-): Promise<SoilImprovementPlan> {
-  const query = cropId ? `?cropId=${cropId}` : ""
-  const res = await fetch(`${API_URL}/api/analyses/${analysisId}/soil-improvement${query}`, {
-    credentials: "include",
-  })
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch soil improvement plan for analysis")
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-// ==========================================
-// Phase 4 API Methods: Environment, Economics, Analytics
-// ==========================================
-
-export async function fetchWeather(province?: string): Promise<WeatherData> {
+export function fetchWeather(province?: string): Promise<WeatherData> {
   const query = province ? `?province=${encodeURIComponent(province)}` : ""
-  const res = await fetch(`${API_URL}/api/environment/weather${query}`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch weather data")
-  }
-  const json = await res.json()
-  return json.data
+  return request(`/api/environment/weather${query}`)
 }
-
-export async function fetchProvinces(): Promise<{
-  provinces: Array<{
-    key: string
-    name: string
-    nameTh: string
-    region: string
-    regionTh: string
-    lat: number
-    lon: number
-  }>
-  currentSeason: { season: string; labelTh: string }
-}> {
-  const res = await fetch(`${API_URL}/api/environment/provinces`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch provinces")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchRegionalSuitability(
-  cropId: string,
-  province?: string,
-  season?: string
-): Promise<RegionalCropSuitability> {
-  const params = new URLSearchParams({ cropId })
-  if (province) params.set("province", province)
-  if (season) params.set("season", season)
-
-  const res = await fetch(`${API_URL}/api/environment/regional-suitability?${params.toString()}`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch regional suitability")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function calculateCropEconomics(params: {
-  cropId: string
-  landAreaRai?: number
-  soil?: SoilInput
-}): Promise<CropEconomics> {
-  const res = await fetch(`${API_URL}/api/economics/calculate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  })
-  if (!res.ok) {
-    throw new Error("Failed to calculate crop economics")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchCropEconomics(
-  cropId: string,
-  landAreaRai?: number
-): Promise<CropEconomics> {
-  const query = landAreaRai ? `?landAreaRai=${landAreaRai}` : ""
-  const res = await fetch(`${API_URL}/api/crops/${cropId}/economics${query}`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch crop economics")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchAnalysisEconomics(
-  analysisId: string,
-  cropId?: string,
-  landAreaRai?: number
-): Promise<CropEconomics> {
-  const params = new URLSearchParams()
-  if (cropId) params.set("cropId", cropId)
-  if (landAreaRai) params.set("landAreaRai", String(landAreaRai))
-
-  const res = await fetch(`${API_URL}/api/analyses/${analysisId}/economics?${params.toString()}`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch analysis economics")
-  }
-  const json = await res.json()
-  return json.data
-}
-
-export async function fetchAnalyticsDashboard(): Promise<AnalyticsDashboardData> {
-  const res = await fetch(`${API_URL}/api/analytics/dashboard`)
-  if (!res.ok) {
-    throw new Error("Failed to fetch analytics dashboard data")
-  }
-  const json = await res.json()
-  return json.data
-}
-

@@ -7,7 +7,7 @@ export const landingMessages = defineMessages({
       titleLead: "วิเคราะห์ดินอย่างแม่นยำ",
       titleAccent: "ปลูกพืชได้ผลผลิตสูงสุด",
       description:
-        "เปลี่ยนค่าแล็บไนโตรเจน (N) ฟอสฟอรัส (P) โพแทสเซียม (K) และ pH ให้เป็นอันดับพืชที่เหมาะสม แผนปรับปรุงดิน และประมาณการผลตอบแทน ภายในไม่กี่วินาที",
+        "เปลี่ยนค่าแล็บไนโตรเจน (N) ฟอสฟอรัส (P) โพแทสเซียม (K) และ pH ให้เป็นอันดับพืชที่เหมาะสมและแผนปรับปรุงดิน ภายในไม่กี่วินาที",
       primaryCta: "เริ่มวิเคราะห์ดินฟรี",
       secondaryCta: "ดูฐานข้อมูลพืช",
       trust: ["เกณฑ์ตามหลักวิชาการ", "ไม่ต้องติดตั้ง ใช้งานฟรี", "ใช้ได้กับใบผลตรวจทุกแล็บ"],
@@ -62,10 +62,6 @@ export const landingMessages = defineMessages({
         title: "แผนปรับปรุงดินเฉพาะพืช",
         body: "วินิจฉัยธาตุที่ขาดหรือเกิน แนะนำสูตรปุ๋ยเคมี ปุ๋ยอินทรีย์ และปริมาณปูนต่อไร่",
       },
-      economics: {
-        title: "ประมาณการต้นทุนและกำไร",
-        body: "คำนวณรายได้ ต้นทุน กำไรสุทธิ และ ROI ต่อไร่ เพื่อลดความเสี่ยงในการลงทุน",
-      },
       history: {
         title: "เก็บประวัติและส่งออก PDF",
         body: "บันทึกผลทุกครั้ง ซิงค์ข้ามอุปกรณ์เมื่อเข้าสู่ระบบ และส่งออกรายงานเป็น PDF",
@@ -88,7 +84,7 @@ export const landingMessages = defineMessages({
       titleLead: "Analyze your soil precisely.",
       titleAccent: "Grow for maximum yield.",
       description:
-        "Turn lab values for nitrogen (N), phosphorus (P), potassium (K) and pH into ranked crop matches, a soil improvement plan and a return estimate — in seconds.",
+        "Turn lab values for nitrogen (N), phosphorus (P), potassium (K) and pH into ranked crop matches and a soil improvement plan — in seconds.",
       primaryCta: "Analyze soil for free",
       secondaryCta: "Browse crops",
       trust: ["Research-based criteria", "Free, nothing to install", "Works with any lab report"],
@@ -142,10 +138,6 @@ export const landingMessages = defineMessages({
       plan: {
         title: "Crop-specific soil plan",
         body: "Diagnoses deficiencies and excesses, then recommends chemical and organic fertilizer and lime per rai.",
-      },
-      economics: {
-        title: "Cost and profit estimates",
-        body: "Projects revenue, cost, net profit and ROI per rai so you can reduce investment risk.",
       },
       history: {
         title: "History and PDF export",

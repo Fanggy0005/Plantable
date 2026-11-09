@@ -11,7 +11,6 @@ export function Footer() {
     { href: "/analyze", label: t.footer.services.analyze },
     { href: "/crops", label: t.footer.services.crops },
     { href: "/history", label: t.footer.services.history },
-    { href: "/analytics", label: t.footer.services.analytics },
   ]
 
   return (

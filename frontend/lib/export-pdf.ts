@@ -1,30 +1,14 @@
 import jsPDF from "jspdf"
 import { defineMessages, INTL_LOCALE, type Locale } from "@/lib/i18n/config"
 import { commonMessages } from "@/lib/i18n/messages/common"
-import { levelFromScore, scoreTone, type ScoreTone } from "@/lib/score"
-import type { FertilizerScheduleItem, NutrientDiagnostic, SoilImprovementPlan } from "@/types"
+import { scoreTone, type ScoreTone } from "@/lib/score"
+import type { NutrientLevel, SoilCheck, SoilPlan, SoilPlanStep } from "@/types"
 
-interface PlantResult {
-  plantId: string
-  name: string
-  nameTh: string
-  description: string
-  score: number
-  level?: string
-  category?: string
-  reasons: string[]
-  improvements: string[]
-}
-
-interface Result {
-  soil: {
-    nitrogen: number
-    phosphorus: number
-    potassium: number
-    ph: number
-  }
-  rankings: PlantResult[]
-  soilImprovement?: SoilImprovementPlan
+export interface ReportInput {
+  check: SoilCheck
+  /** The soil plan currently on screen, if any. */
+  plan: SoilPlan | null
+  planCropName?: string
 }
 
 /*
@@ -62,74 +46,54 @@ const TONE: Record<ScoreTone, { bar: string; bg: string; fg: string }> = {
   bad: { bar: C.danger, bg: C.dangerSoft, fg: C.danger },
 }
 
-const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
-  severe_deficiency: { bg: C.dangerSoft, fg: C.danger },
-  mild_deficiency: { bg: C.warningSoft, fg: C.warning },
-  optimal: { bg: C.successSoft, fg: C.success },
-  mild_excess: { bg: C.infoSoft, fg: C.info },
-  severe_excess: { bg: C.infoSoft, fg: C.info },
+const LEVEL_TONE: Record<NutrientLevel, { bg: string; fg: string }> = {
+  low: { bg: C.warningSoft, fg: C.warning },
+  medium: { bg: C.infoSoft, fg: C.info },
+  high: { bg: C.successSoft, fg: C.success },
 }
 
 const pdfMessages = defineMessages({
   th: {
     title: "รายงานผลวิเคราะห์ดินและคำแนะนำพืช",
-    generated: "วันที่ออกรายงาน",
-    soilTitle: "ค่าวิเคราะห์ดิน",
-    planTitle: "แผนปรับปรุงดินและการใส่ปุ๋ย",
-    healthScore: "คะแนนสุขภาพดิน",
-    diagnostics: "วินิจฉัยธาตุอาหาร",
-    nutrient: "ธาตุอาหาร",
-    current: "ค่าปัจจุบัน",
-    optimalRange: "ช่วงเหมาะสม",
-    status: "สถานะ",
-    fertilizerTitle: "ตารางใส่ปุ๋ยเคมี",
-    stage: "ระยะ",
-    formula: "สูตร",
-    rate: "อัตรา (กก./ไร่)",
-    timing: "ช่วงเวลา",
-    phTitle: "การปรับค่า pH",
-    material: "วัสดุ",
-    dosage: "อัตรา",
+    generated: "วันที่ตรวจ",
+    siteTitle: "สภาพแปลง",
+    soilTitle: "ผลตรวจดิน",
+    estimated: "ประเมิน",
+    warningsTitle: "ข้อควรทราบ",
+    planTitle: (crop: string) => `แผนปรับปรุงดินสำหรับ${crop}`,
+    planMeta: (rai: number, mode: string, difficulty: string) => `${rai} ไร่ · ${mode} · ${difficulty}`,
+    when: "ช่วงเวลา",
+    step: "ขั้นตอน",
+    total: "ทั้งแปลง",
+    before: (d: number) => `${d} วันก่อนปลูก`,
+    planting: "วันปลูก",
+    after: (d: number) => `${d} วันหลังปลูก`,
+    afterHarvest: "หลังเก็บเกี่ยว",
     rankingTitle: "อันดับพืชที่เหมาะสม",
-    score: "คะแนน",
-    reasons: "เหตุผล",
-    improvements: "แนะนำปรับปรุง",
-    footer: "คำนวณตามเกณฑ์ปฐพีวิทยามาตรฐาน: N 30% · P 20% · K 20% · pH 30%",
+    ineligibleTitle: "พืชที่ปลูกไม่ได้ในแปลงนี้",
+    footer: "คำนวณด้วยกฎและข้อมูลอ้างอิงชุดเดียวกันทุกครั้ง ข้อมูลเดียวกันได้ผลเดียวกันเสมอ",
   },
   en: {
     title: "Soil Analysis & Crop Recommendation Report",
-    generated: "Generated",
-    soilTitle: "Soil test values",
-    planTitle: "Soil improvement & fertilizer plan",
-    healthScore: "Soil health score",
-    diagnostics: "Nutrient diagnostics",
-    nutrient: "Nutrient",
-    current: "Current",
-    optimalRange: "Optimal range",
-    status: "Status",
-    fertilizerTitle: "Fertilizer schedule",
-    stage: "Stage",
-    formula: "Formula",
-    rate: "Rate (kg/rai)",
-    timing: "Timing",
-    phTitle: "pH correction",
-    material: "Material",
-    dosage: "Rate",
+    generated: "Tested on",
+    siteTitle: "Plot conditions",
+    soilTitle: "Soil test",
+    estimated: "estimated",
+    warningsTitle: "Good to know",
+    planTitle: (crop: string) => `Soil plan for ${crop}`,
+    planMeta: (rai: number, mode: string, difficulty: string) => `${rai} rai · ${mode} · ${difficulty}`,
+    when: "When",
+    step: "Step",
+    total: "Whole plot",
+    before: (d: number) => `${d} days before planting`,
+    planting: "Planting day",
+    after: (d: number) => `${d} days after planting`,
+    afterHarvest: "After harvest",
     rankingTitle: "Crop suitability ranking",
-    score: "Score",
-    reasons: "Why it fits",
-    improvements: "Suggested improvements",
-    footer: "Scored with standard agronomy weights: N 30% · P 20% · K 20% · pH 30%",
+    ineligibleTitle: "Crops that can't grow on this plot",
+    footer: "Calculated with fixed rules and reference data; the same input always gives the same result.",
   },
 })
-
-const STATUS_EN: Record<string, string> = {
-  severe_deficiency: "Severely deficient",
-  mild_deficiency: "Slightly low",
-  optimal: "Optimal",
-  mild_excess: "Slightly high",
-  severe_excess: "Excessive",
-}
 
 function escapeHtml(text: string | number | undefined | null): string {
   return String(text ?? "")
@@ -165,11 +129,14 @@ function table(headers: string[], rows: string[][]) {
   return `<table style="width:100%;border-collapse:separate;border-spacing:0;border:1px solid ${C.border};border-radius:10px;overflow:hidden"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`
 }
 
-function buildReportHtml(result: Result, locale: Locale): string {
+function buildReportHtml({ check, plan, planCropName }: ReportInput, locale: Locale): string {
   const t = pdfMessages[locale]
   const common = commonMessages[locale]
+  const { site, soil, result } = check
   const pick = (th?: string, en?: string) => (locale === "th" ? th || en : en || th) ?? ""
-  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], { year: "numeric", month: "long", day: "numeric" }).format(new Date())
+  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], { year: "numeric", month: "long", day: "numeric" }).format(
+    new Date(check.createdAt)
+  )
 
   const header = `
     <div data-pdf-block style="background:${C.forest};color:#ffffff;border-radius:16px;padding:22px 24px;margin-bottom:20px;position:relative;overflow:hidden">
@@ -181,6 +148,7 @@ function buildReportHtml(result: Result, locale: Locale): string {
             <span style="font-size:16px;font-weight:700">Plantable</span>
           </div>
           <div style="font-size:20px;font-weight:700;line-height:1.3">${escapeHtml(t.title)}</div>
+          ${check.notes ? `<div style="font-size:12px;color:${C.forestMuted};margin-top:4px">${escapeHtml(check.notes)}</div>` : ""}
         </div>
         <div style="text-align:right;font-size:11px;color:${C.forestMuted};white-space:nowrap">
           ${escapeHtml(t.generated)}<br/><span style="color:#ffffff;font-weight:600;font-size:12px">${escapeHtml(date)}</span>
@@ -188,108 +156,136 @@ function buildReportHtml(result: Result, locale: Locale): string {
       </div>
     </div>`
 
-  const soilTiles = [
-    { label: `${common.nutrients.nitrogen} (N)`, value: result.soil.nitrogen, unit: common.units.mgPerKg },
-    { label: `${common.nutrients.phosphorus} (P)`, value: result.soil.phosphorus, unit: common.units.mgPerKg },
-    { label: `${common.nutrients.potassium} (K)`, value: result.soil.potassium, unit: common.units.mgPerKg },
-    { label: common.nutrients.ph, value: result.soil.ph, unit: "pH" },
-  ]
-    .map(
-      (s) => `
-      <div style="flex:1;border:1px solid ${C.border};border-radius:12px;padding:12px 14px;background:#ffffff">
-        <div style="font-size:11px;color:${C.mutedForeground};font-weight:600">${escapeHtml(s.label)}</div>
-        <div style="font-size:22px;font-weight:700;color:${C.foreground};margin-top:4px">${escapeHtml(s.value)}
-          <span style="font-size:11px;font-weight:500;color:${C.mutedForeground}">${escapeHtml(s.unit)}</span></div>
-      </div>`
-    )
-    .join("")
+  const warnings = result.warnings.length
+    ? `<div data-pdf-block style="margin-bottom:18px;border:1px solid ${C.warning};border-radius:12px;padding:12px 16px;background:${C.warningSoft};font-size:12px;color:${C.foreground}">
+         <strong style="color:${C.warning}">${escapeHtml(t.warningsTitle)}</strong>
+         ${result.warnings.map((w) => `<div style="margin-top:4px">${escapeHtml(w)}</div>`).join("")}
+       </div>`
+    : ""
 
-  const soil = `
+  const siteChips = [
+    common.landTypes[site.landType],
+    common.waterSupplies[site.waterSupply],
+    common.soilTextures[site.soilTexture],
+  ]
+    .map((v) => pill(v, C.muted, C.foreground))
+    .join(" ")
+
+  const lab = soil.inputMode === "lab" ? soil : null
+  const levelTile = (label: string, level: NutrientLevel, estimated: boolean, value?: string) => {
+    const tone = LEVEL_TONE[level]
+    return `
+      <div style="flex:1;border:1px solid ${C.border};border-radius:12px;padding:10px 12px;background:#ffffff">
+        <div style="font-size:11px;color:${C.mutedForeground};font-weight:600">${escapeHtml(label)}</div>
+        <div style="margin-top:6px">${pill(common.nutrientLevels[level], tone.bg, tone.fg)}${
+          estimated ? ` <span style="font-size:10px;color:${C.mutedForeground}">(${escapeHtml(t.estimated)})</span>` : ""
+        }</div>
+        ${value ? `<div style="font-size:11px;color:${C.mutedForeground};margin-top:4px">${escapeHtml(value)}</div>` : ""}
+      </div>`
+  }
+  const { levels } = result
+  const soilTiles = [
+    `<div style="flex:1;border:1px solid ${C.border};border-radius:12px;padding:10px 12px;background:#ffffff">
+       <div style="font-size:11px;color:${C.mutedForeground};font-weight:600">${escapeHtml(common.nutrients.ph)}</div>
+       <div style="font-size:22px;font-weight:700;color:${C.foreground};margin-top:2px">${escapeHtml(soil.ph)}</div>
+     </div>`,
+    levelTile(
+      common.nutrients.organicMatter,
+      levels.organicMatter,
+      levels.organicMatterEstimated,
+      lab ? `${lab.organicMatterPct} ${common.units.percent}` : undefined
+    ),
+    levelTile(common.nutrients.nitrogen, levels.nitrogen, levels.nitrogenEstimated),
+    levelTile(
+      common.nutrients.phosphorus,
+      levels.phosphorus,
+      false,
+      lab ? `${lab.phosphorusMgKg} ${common.units.mgPerKg}` : undefined
+    ),
+    levelTile(
+      common.nutrients.potassium,
+      levels.potassium,
+      false,
+      lab ? `${lab.potassiumMgKg} ${common.units.mgPerKg}` : undefined
+    ),
+  ].join("")
+
+  const soilSection = `
     <div data-pdf-block style="margin-bottom:22px">
+      ${sectionTitle(t.siteTitle)}
+      <div style="margin-bottom:14px">${siteChips}</div>
       ${sectionTitle(t.soilTitle)}
-      <div style="display:flex;gap:10px">${soilTiles}</div>
+      <div style="display:flex;gap:8px">${soilTiles}</div>
     </div>`
 
-  let plan = ""
-  const si = result.soilImprovement
-  if (si) {
-    const health = Number(si.soilHealthScore ?? 0)
-    const healthColor = health >= 80 ? C.success : health >= 60 ? C.warning : C.danger
-    const healthBg = health >= 80 ? C.successSoft : health >= 60 ? C.warningSoft : C.dangerSoft
+  let planSection = ""
+  if (plan && planCropName) {
+    const when = (step: SoilPlanStep) =>
+      step.daysAfterPlanting === null
+        ? t.afterHarvest
+        : step.daysAfterPlanting < 0
+          ? t.before(-step.daysAfterPlanting)
+          : step.daysAfterPlanting === 0
+            ? t.planting
+            : t.after(step.daysAfterPlanting)
 
-    const diagRows: string[][] = (si.diagnostics ?? []).map((d: NutrientDiagnostic) => {
-      const tone = STATUS_TONE[d.status] ?? STATUS_TONE.optimal
-      const label = locale === "th" ? d.statusLabelTh || STATUS_EN[d.status] : STATUS_EN[d.status] ?? d.statusLabelTh
-      const unit = d.nutrient === "ph" ? "" : ` ${common.units.mgPerKg}`
-      return [
-        `<strong>${escapeHtml((common.nutrients as Record<string, string>)[d.nutrient] ?? pick(d.nameTh, d.name))}</strong>`,
-        `${escapeHtml(d.currentValue)}${escapeHtml(unit)}`,
-        `${escapeHtml(d.optimalRange?.min)}–${escapeHtml(d.optimalRange?.max)}${escapeHtml(unit)}`,
-        pill(label, tone.bg, tone.fg),
-      ]
+    // [per rai, whole plot] as HTML
+    const amounts = (step: SoilPlanStep): [string, string] => {
+      if (step.type === "fertilizer") {
+        if (!step.products.length) {
+          const n = step.nutrientsPerRai
+          return [escapeHtml(`N ${n.n} · P₂O₅ ${n.p2o5} · K₂O ${n.k2o}`), ""]
+        }
+        return [
+          step.products.map((p) => escapeHtml(`${p.formula}: ${p.kgPerRai}`)).join("<br/>"),
+          step.products.map((p) => escapeHtml(`${p.formula}: ${p.kgTotal} kg`)).join("<br/>"),
+        ]
+      }
+      if (step.type === "retest" || step.kgPerRai === null) return ["", ""]
+      const material = step.type === "ph_correction" && step.material ? `${step.material} ` : ""
+      return [escapeHtml(`${material}${step.kgPerRai}`), step.kgTotal !== null ? escapeHtml(`${step.kgTotal} kg`) : ""]
+    }
+
+    const rows = plan.steps.map((step) => {
+      const [perRai, total] = amounts(step)
+      const note = step.noteTh
+        ? `<div style="color:${C.mutedForeground};font-size:11px;margin-top:2px">${escapeHtml(step.noteTh)}</div>`
+        : ""
+      return [escapeHtml(when(step)), `<strong>${escapeHtml(step.titleTh)}</strong>${note}`, perRai, total]
     })
 
-    const fertRows: string[][] = (si.fertilizerRecommendations ?? []).map((f: FertilizerScheduleItem, i: number) => [
-      `<span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:${C.primary};color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-right:6px">${i + 1}</span>${escapeHtml(f.stage)}`,
-      `<span style="font-family:monospace;font-weight:700;color:${C.primary}">${escapeHtml(f.formula)}</span>`,
-      escapeHtml(f.rateKgPerRai),
-      escapeHtml(f.timing),
-    ])
+    const planWarnings = plan.warnings.length
+      ? `<div style="margin-bottom:10px;font-size:11px;color:${C.warning}">${plan.warnings
+          .map((w) => `<div>• ${escapeHtml(w)}</div>`)
+          .join("")}</div>`
+      : ""
 
-    plan = `
-      <div data-pdf-block style="margin-bottom:14px">
-        ${sectionTitle(t.planTitle)}
-        <div style="display:flex;gap:14px;align-items:center;border:1px solid ${C.border};border-radius:12px;padding:14px 16px;background:${healthBg}">
-          <div style="text-align:center;min-width:86px">
-            <div style="font-size:30px;font-weight:800;color:${healthColor};line-height:1">${escapeHtml(health)}</div>
-            <div style="font-size:10px;color:${C.mutedForeground}">/ 100</div>
-          </div>
-          <div style="border-left:1px solid ${C.border};padding-left:14px">
-            <div style="font-size:12px;font-weight:700;color:${C.foreground}">${escapeHtml(t.healthScore)}</div>
-            <div style="font-size:12px;color:${C.mutedForeground};margin-top:2px;line-height:1.6">${escapeHtml(si.overallConditionTh)}</div>
-          </div>
-        </div>
+    planSection = `
+      <div data-pdf-block style="margin-bottom:8px">
+        ${sectionTitle(t.planTitle(planCropName))}
+        <div style="font-size:12px;color:${C.mutedForeground};margin:-4px 0 10px">${escapeHtml(
+          t.planMeta(plan.areaRai, common.planModes[plan.mode], common.difficulties[plan.difficulty])
+        )}</div>
+        ${planWarnings}
       </div>
-      ${
-        diagRows.length
-          ? `<div data-pdf-block style="margin-bottom:14px">
-               <div style="font-size:12px;font-weight:700;color:${C.foreground};margin-bottom:6px">${escapeHtml(t.diagnostics)}</div>
-               ${table([t.nutrient, t.current, t.optimalRange, t.status], diagRows)}
-             </div>`
-          : ""
-      }
-      ${
-        fertRows.length
-          ? `<div data-pdf-block style="margin-bottom:14px">
-               <div style="font-size:12px;font-weight:700;color:${C.foreground};margin-bottom:6px">${escapeHtml(t.fertilizerTitle)}</div>
-               ${table([t.stage, t.formula, t.rate, t.timing], fertRows)}
-             </div>`
-          : ""
-      }
-      ${
-        si.phCorrection
-          ? `<div data-pdf-block style="margin-bottom:22px;border:1px solid ${C.border};border-radius:12px;padding:12px 16px;font-size:12px;color:${C.foreground}">
-               <strong style="color:${C.primary}">${escapeHtml(t.phTitle)}</strong>
-               <span style="color:${C.mutedForeground}"> · pH ${escapeHtml(si.phCorrection.currentPh)} (${escapeHtml(si.phCorrection.categoryTh)})</span><br/>
-               ${escapeHtml(t.material)}: <strong>${escapeHtml(si.phCorrection.recommendedMaterial)}</strong>
-               &nbsp;·&nbsp; ${escapeHtml(t.dosage)}: <strong>${escapeHtml(si.phCorrection.dosageKgPerRai)} ${escapeHtml(common.units.kgPerRai)}</strong>
-             </div>`
-          : ""
-      }`
+      <div data-pdf-block style="margin-bottom:22px">
+        ${table([t.when, t.step, common.units.kgPerRai, t.total], rows)}
+      </div>`
   }
 
   const rankingHeader = `<div data-pdf-block style="margin-bottom:0">${sectionTitle(t.rankingTitle)}</div>`
 
-  const plants = result.rankings
-    .map((plant, index) => {
-      const tone = TONE[scoreTone(plant.score)]
-      const level = common.levels[plant.level ?? levelFromScore(plant.score)] ?? plant.level ?? ""
-      const primaryName = pick(plant.nameTh, plant.name)
-      const secondaryName = locale === "th" ? plant.name : plant.nameTh
-      const list = (items: string[]) =>
-        `<ul style="margin:4px 0 0;padding-left:18px;color:${C.mutedForeground};font-size:12px;line-height:1.65">${items
-          .map((i) => `<li>${escapeHtml(i)}</li>`)
-          .join("")}</ul>`
+  const crops = result.ranked
+    .map((crop, index) => {
+      const tone = TONE[scoreTone(crop.score)]
+      const level = common.levels[crop.level] ?? crop.level
+      const primaryName = pick(crop.cropNameTh, crop.cropName)
+      const secondaryName = locale === "th" ? crop.cropName : crop.cropNameTh
+      const reasons = crop.reasons.length
+        ? `<ul style="margin:8px 0 0;padding-left:18px;color:${C.mutedForeground};font-size:12px;line-height:1.65">${crop.reasons
+            .map((r) => `<li>${escapeHtml(r)}</li>`)
+            .join("")}</ul>`
+        : ""
 
       return `
         <div data-pdf-block style="border:1px solid ${index === 0 ? C.primary : C.border};border-radius:14px;padding:14px 16px;margin-bottom:10px;background:#ffffff">
@@ -299,41 +295,40 @@ function buildReportHtml(result: Result, locale: Locale): string {
               <div>
                 <div style="font-size:15px;font-weight:700;color:${C.foreground}">${escapeHtml(primaryName)}
                   <span style="font-size:12px;font-weight:500;color:${C.mutedForeground}">${secondaryName ? `(${escapeHtml(secondaryName)})` : ""}</span></div>
-                <div style="margin-top:4px">${pill(level, tone.bg, tone.fg)}</div>
+                <div style="margin-top:4px">${pill(level, tone.bg, tone.fg)} ${pill(common.difficulties[crop.difficulty], C.muted, C.foreground)}</div>
               </div>
             </div>
             <div style="text-align:right;min-width:92px">
-              <div style="font-size:24px;font-weight:800;color:${tone.fg};line-height:1">${escapeHtml(plant.score)}<span style="font-size:11px;font-weight:500;color:${C.mutedForeground}">/100</span></div>
+              <div style="font-size:24px;font-weight:800;color:${tone.fg};line-height:1">${escapeHtml(crop.score)}<span style="font-size:11px;font-weight:500;color:${C.mutedForeground}">/100</span></div>
               <div style="height:6px;border-radius:999px;background:${C.muted};margin-top:6px;overflow:hidden">
-                <div style="height:6px;width:${Math.max(0, Math.min(100, plant.score))}%;background:${tone.bar};border-radius:999px"></div>
+                <div style="height:6px;width:${Math.max(0, Math.min(100, crop.score))}%;background:${tone.bar};border-radius:999px"></div>
               </div>
             </div>
           </div>
-          ${plant.description ? `<p style="font-size:12px;color:${C.mutedForeground};margin:10px 0 0;line-height:1.65">${escapeHtml(plant.description)}</p>` : ""}
-          ${
-            (plant.reasons ?? []).length
-              ? `<div style="margin-top:8px"><div style="font-size:12px;font-weight:700;color:${C.success}">${escapeHtml(t.reasons)}</div>${list(plant.reasons)}</div>`
-              : ""
-          }
-          ${
-            (plant.improvements ?? []).length
-              ? `<div style="margin-top:8px"><div style="font-size:12px;font-weight:700;color:${C.warning}">${escapeHtml(t.improvements)}</div>${list(plant.improvements)}</div>`
-              : ""
-          }
+          ${reasons}
         </div>`
     })
     .join("")
 
+  const ineligible = result.ineligible.length
+    ? `<div data-pdf-block style="margin-top:12px;font-size:12px;color:${C.mutedForeground}">
+         <strong style="color:${C.foreground}">${escapeHtml(t.ineligibleTitle)}</strong>
+         ${result.ineligible
+           .map((c) => `<div style="margin-top:3px">${escapeHtml(`${pick(c.cropNameTh, c.cropName)}: ${c.reasons.join(" · ")}`)}</div>`)
+           .join("")}
+       </div>`
+    : ""
+
   const footer = `<div data-pdf-block style="margin-top:14px;padding-top:10px;border-top:1px solid ${C.border};font-size:10px;color:${C.mutedForeground}">${escapeHtml(t.footer)}</div>`
 
   return `<div style="font-family:var(--pdf-font);color:${C.foreground};padding:24px;background:#ffffff;line-height:1.5">
-    ${header}${soil}${plan}${rankingHeader}${plants}${footer}
+    ${header}${warnings}${soilSection}${planSection}${rankingHeader}${crops}${ineligible}${footer}
   </div>`
 }
 
 const REPORT_WIDTH = 760
 
-function createReportElement(result: Result, locale: Locale): HTMLElement {
+function createReportElement(report: ReportInput, locale: Locale): HTMLElement {
   const container = document.createElement("div")
   container.style.position = "fixed"
   container.style.left = "-10000px"
@@ -346,7 +341,7 @@ function createReportElement(result: Result, locale: Locale): HTMLElement {
     "--pdf-font",
     `${getComputedStyle(document.body).fontFamily}, "Segoe UI", Tahoma, "Noto Sans Thai", sans-serif`
   )
-  container.innerHTML = buildReportHtml(result, locale)
+  container.innerHTML = buildReportHtml(report, locale)
   document.body.appendChild(container)
   return container
 }
@@ -429,9 +424,9 @@ function addCanvasToPdf(doc: jsPDF, canvas: HTMLCanvasElement, breakpoints: numb
   })
 }
 
-export async function exportToPDF(result: Result, options: { locale?: Locale } = {}): Promise<void> {
+export async function exportToPDF(report: ReportInput, options: { locale?: Locale } = {}): Promise<void> {
   const locale = options.locale ?? "th"
-  const container = createReportElement(result, locale)
+  const container = createReportElement(report, locale)
 
   try {
     const { default: html2canvas } = await import("html2canvas")

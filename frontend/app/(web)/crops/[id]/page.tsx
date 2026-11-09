@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "motion/react"
-import { ArrowLeft, Coins, FlaskConical, Info, Leaf, Sprout, Target } from "lucide-react"
+import { ArrowLeft, BookOpen, CalendarClock, Droplets, FlaskConical, Info, Layers, Map as MapIcon, Sprout, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,16 +12,13 @@ import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
 import { CropIcon } from "@/components/shared/CropIcon"
 import { SectionHeading } from "@/components/shared/PageHeader"
 import { EmptyState } from "@/components/shared/States"
-import { EASE_OUT, FadeIn } from "@/components/motion"
-import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
-import { FertilizerScheduleCard } from "@/features/soil-improvement/components/FertilizerScheduleCard"
-import { SoilAmendmentCard } from "@/features/soil-improvement/components/SoilAmendmentCard"
-import { CropEconomicsCard } from "@/features/economics/components/CropEconomicsCard"
+import { FadeIn, Stagger, StaggerItem } from "@/components/motion"
 import { cropCatalogMessages } from "@/features/crop/catalog-messages"
-import { fetchCropById, fetchSoilImprovement } from "@/lib/api"
+import { fetchCropById } from "@/lib/api"
 import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
-import type { Crop, SoilImprovementPlan } from "@/types"
+import { LEVEL_VARIANT } from "@/lib/score"
+import type { CropDetail, CropRequirement, FertilizerStage } from "@/types"
 
 export default function CropDetailPage() {
   const params = useParams()
@@ -30,37 +27,23 @@ export default function CropDetailPage() {
   const common = useT(commonMessages)
   const { pick, locale } = useFormat()
 
-  const [crop, setCrop] = useState<Crop | null>(null)
+  const [crop, setCrop] = useState<CropDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [soilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
-    async function loadCrop() {
-      if (!id) return
-      setLoading(true)
-      try {
-        const data = await fetchCropById(id)
-        setCrop(data)
-        if (data.requirement) {
-          const plan = await fetchSoilImprovement(
-            {
-              nitrogen: data.requirement.nitrogenOptimal,
-              phosphorus: data.requirement.phosphorusOptimal,
-              potassium: data.requirement.potassiumOptimal,
-              ph: data.requirement.phOptimal,
-            },
-            data.id
-          )
-          setSoilPlan(plan)
-        }
-      } catch (err) {
-        setError(err instanceof Error && err.message ? err.message : "Failed to load crop details")
-      } finally {
-        setLoading(false)
-      }
+    if (!id) return
+    let cancelled = false
+    fetchCropById(id)
+      .then((data) => !cancelled && setCrop(data))
+      .catch((err) => {
+        console.error("Failed to load crop", err)
+        if (!cancelled) setError(true)
+      })
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
     }
-    loadCrop()
   }, [id])
 
   if (loading) return <CropDetailSkeleton />
@@ -87,14 +70,6 @@ export default function CropDetailPage() {
   const displayName = pick(crop.nameTh, crop.name)
   const secondaryName = locale === "th" ? crop.name : crop.nameTh
 
-  const nutrients = req
-    ? [
-        { letter: "N", label: common.nutrients.nitrogen, min: req.nitrogenMin, max: req.nitrogenMax, optimal: req.nitrogenOptimal, color: "var(--chart-1)" },
-        { letter: "P", label: common.nutrients.phosphorus, min: req.phosphorusMin, max: req.phosphorusMax, optimal: req.phosphorusOptimal, color: "var(--chart-3)" },
-        { letter: "K", label: common.nutrients.potassium, min: req.potassiumMin, max: req.potassiumMax, optimal: req.potassiumOptimal, color: "var(--chart-4)" },
-      ]
-    : []
-
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
       <Link
@@ -118,13 +93,8 @@ export default function CropDetailPage() {
               <CropIcon name={crop.name} category={crop.category} size="xl" />
             </motion.div>
             <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{common.categories[crop.category] ?? crop.category}</Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{displayName}</h1>
-                <FavoriteButton cropId={crop.id} />
-              </div>
+              <Badge variant="secondary">{common.categories[crop.category] ?? crop.category}</Badge>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{displayName}</h1>
               <p className="text-sm text-muted-foreground sm:text-base">
                 {secondaryName}
                 {crop.scientificName && (
@@ -155,141 +125,135 @@ export default function CropDetailPage() {
         )}
       </FadeIn>
 
-      {req && (
-        <section className="space-y-5">
-          <SectionHeading icon={Target} title={t.requirementsTitle} description={t.requirementsDescription} />
+      <section className="space-y-5">
+        <SectionHeading icon={Target} title={t.requirementsTitle} description={t.requirementsDescription} />
+        {req ? <Requirements requirement={req} cropName={displayName} /> : <EmptyState icon={Target} title={t.noRequirement} />}
+      </section>
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-            <FadeIn className="surface space-y-6 p-5 sm:p-6 lg:col-span-3">
-              {nutrients.map((n, i) => (
-                <RangeBar key={n.letter} {...n} delay={i * 0.1} optimalLabel={t.optimal} rangeLabel={t.range} unit={common.units.mgPerKg} />
-              ))}
-            </FadeIn>
-
-            <FadeIn delay={0.1} className="flex flex-col gap-4 lg:col-span-2">
-              <div className="surface flex items-center justify-between p-5">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">{t.phTitle}</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {req.phMin}–{req.phMax}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-muted-foreground">{t.optimal}</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{req.phOptimal}</p>
-                </div>
-              </div>
-              <PHScaleGauge
-                currentPh={req.phOptimal}
-                targetMin={req.phMin}
-                targetMax={req.phMax}
-                cropName={displayName}
-              />
-            </FadeIn>
-          </div>
-        </section>
-      )}
-
-      {soilPlan && (
-        <section className="space-y-5">
-          <SectionHeading icon={Leaf} title={t.managementTitle} description={t.managementDescription} />
-          <FadeIn className="space-y-5">
-            <FertilizerScheduleCard schedule={soilPlan.fertilizerRecommendations} cropNameTh={displayName} />
-            <SoilAmendmentCard
-              phCorrection={soilPlan.phCorrection}
-              organicAlternatives={soilPlan.organicAlternatives}
-            />
-          </FadeIn>
-        </section>
-      )}
-
-      {req && (
-        <section className="space-y-5">
-          <SectionHeading icon={Coins} title={t.economicsTitle} />
-          <FadeIn>
-            <CropEconomicsCard cropId={crop.id} cropNameTh={displayName} />
-          </FadeIn>
-        </section>
-      )}
+      {crop.fertilizerStages.length > 0 && <FertilizerStages stages={crop.fertilizerStages} />}
     </div>
   )
 }
 
-/** Horizontal track showing the acceptable range as a band and the optimal value as a dot. */
-function RangeBar({
-  letter,
-  label,
-  min,
-  max,
-  optimal,
-  color,
-  delay,
-  optimalLabel,
-  rangeLabel,
-  unit,
-}: {
-  letter: string
-  label: string
-  min: number
-  max: number
-  optimal: number
-  color: string
-  delay: number
-  optimalLabel: string
-  rangeLabel: string
-  unit: string
-}) {
-  const scaleMax = Math.max(max * 1.25, 1)
-  const left = (min / scaleMax) * 100
-  const width = ((max - min) / scaleMax) * 100
-  const dot = (optimal / scaleMax) * 100
+function Requirements({ requirement: req, cropName }: { requirement: CropRequirement; cropName: string }) {
+  const t = useT(cropCatalogMessages).detail
+  const common = useT(commonMessages)
+
+  const siteRows = [
+    { icon: MapIcon, label: t.landTypes, values: req.allowedLandTypes.map((v) => common.landTypes[v]) },
+    { icon: Droplets, label: t.minWater, values: [common.waterSupplies[req.minWaterSupply]] },
+    { icon: Layers, label: t.textures, values: req.preferredTextures.map((v) => common.soilTextures[v]) },
+  ]
+  const nutrientRows = [
+    { key: "organicMatter", level: req.minOrganicMatterLevel },
+    { key: "nitrogen", level: req.minNitrogenLevel },
+    { key: "phosphorus", level: req.minPhosphorusLevel },
+    { key: "potassium", level: req.minPotassiumLevel },
+  ] as const
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="flex size-9 items-center justify-center rounded-lg text-sm font-bold text-primary-foreground"
-            style={{ backgroundColor: color }}
-          >
-            {letter}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{label}</p>
-            <p className="text-xs text-muted-foreground">
-              {rangeLabel} {min}–{max} {unit}
-            </p>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <FadeIn className="surface space-y-5 p-5 sm:p-6 lg:col-span-3">
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-foreground">{t.siteTitle}</h3>
+            <dl className="space-y-2.5">
+              {siteRows.map(({ icon: Icon, label, values }) => (
+                <div key={label} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <dt className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Icon className="size-4 text-primary" />
+                    {label}
+                  </dt>
+                  <dd className="flex flex-wrap gap-1.5">
+                    {values.map((v) => (
+                      <Badge key={v} variant="outline">
+                        {v}
+                      </Badge>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] font-medium text-muted-foreground">{optimalLabel}</p>
-          <p className="text-xl font-bold tabular-nums text-foreground">{optimal}</p>
-        </div>
+
+          <div className="space-y-3 border-t border-border pt-5">
+            <h3 className="text-sm font-bold text-foreground">{t.nutrientsTitle}</h3>
+            <dl className="grid grid-cols-2 gap-2">
+              {nutrientRows.map(({ key, level }) => (
+                <div key={key} className="rounded-xl bg-muted/60 p-3">
+                  <dt className="text-xs text-muted-foreground">{common.nutrients[key]}</dt>
+                  <dd className="mt-1">
+                    <Badge variant={LEVEL_VARIANT[level]}>{t.atLeast(common.nutrientLevels[level])}</Badge>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={0.1} className="flex flex-col gap-4 lg:col-span-2">
+          <div className="surface flex items-center justify-between p-5">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">{t.phTitle}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+                {req.phMin}–{req.phMax}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-muted-foreground">{t.optimal}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{req.phOptimal}</p>
+            </div>
+          </div>
+          <PHScaleGauge currentPh={req.phOptimal} targetMin={req.phMin} targetMax={req.phMax} cropName={cropName} />
+        </FadeIn>
       </div>
 
-      <div className="relative h-3 rounded-full bg-muted">
-        <motion.div
-          className="absolute inset-y-0 rounded-full"
-          style={{ left: `${left}%`, backgroundColor: `color-mix(in oklch, ${color} 28%, transparent)` }}
-          initial={{ width: 0 }}
-          whileInView={{ width: `${width}%` }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: EASE_OUT, delay }}
-        />
-        <motion.div
-          className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card shadow-sm"
-          style={{ left: `${dot}%`, backgroundColor: color }}
-          initial={{ scale: 0 }}
-          whileInView={{ scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ type: "spring", stiffness: 400, damping: 18, delay: delay + 0.5 }}
-        />
-      </div>
-      <div className="flex justify-between text-[11px] tabular-nums text-muted-foreground">
-        <span>0</span>
-        <span>{Math.round(scaleMax)}</span>
-      </div>
+      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+        <BookOpen className="mt-px size-3.5 shrink-0" />
+        <span>
+          <span className="font-semibold">{t.source}:</span> {req.source}
+        </span>
+      </p>
     </div>
+  )
+}
+
+function FertilizerStages({ stages }: { stages: FertilizerStage[] }) {
+  const t = useT(cropCatalogMessages).detail
+  const { pick, number } = useFormat()
+  const pct = (share: number) => `${number(Math.round(share * 100))}%`
+
+  return (
+    <section className="space-y-5">
+      <SectionHeading icon={CalendarClock} title={t.stagesTitle} description={t.stagesDescription} />
+      <Stagger className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {stages.map((stage) => (
+          <StaggerItem key={stage.id} className="surface space-y-3 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-bold text-primary">
+                {stage.order}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{pick(stage.nameTh, stage.nameEn)}</p>
+                <p className="text-xs text-muted-foreground">{t.day(stage.daysAfterPlanting)}</p>
+              </div>
+            </div>
+            <dl className="grid grid-cols-3 gap-1.5 text-center">
+              {[
+                ["N", stage.nitrogenShare],
+                ["P₂O₅", stage.phosphorusShare],
+                ["K₂O", stage.potassiumShare],
+              ].map(([k, v]) => (
+                <div key={k as string} className="rounded-lg bg-muted px-2 py-1.5">
+                  <dt className="text-[11px] font-semibold text-muted-foreground">{k}</dt>
+                  <dd className="text-sm font-bold text-foreground tabular-nums">{pct(v as number)}</dd>
+                </div>
+              ))}
+            </dl>
+          </StaggerItem>
+        ))}
+      </Stagger>
+    </section>
   )
 }
 

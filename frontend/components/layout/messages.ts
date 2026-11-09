@@ -6,7 +6,6 @@ export const layoutMessages = defineMessages({
       analyze: "วิเคราะห์ดิน",
       crops: "ฐานข้อมูลพืช",
       history: "ประวัติการตรวจ",
-      analytics: "สถิติ",
     },
     account: {
       login: "เข้าสู่ระบบ",
@@ -22,13 +21,12 @@ export const layoutMessages = defineMessages({
     language: "ภาษา",
     footer: {
       about:
-        "แปลงค่าวิเคราะห์ดิน N-P-K และ pH ให้เป็นคำแนะนำพืช แผนปรับปรุงดิน และประมาณการผลตอบแทน ตามเกณฑ์ปฐพีวิทยามาตรฐาน",
+        "แปลงค่าวิเคราะห์ดิน N-P-K และ pH ให้เป็นคำแนะนำพืชและแผนปรับปรุงดิน ตามเกณฑ์ปฐพีวิทยามาตรฐาน",
       servicesTitle: "บริการ",
       services: {
         analyze: "วิเคราะห์ผลตรวจดิน",
         crops: "ฐานข้อมูลความต้องการของพืช",
         history: "ประวัติการตรวจดิน",
-        analytics: "แดชบอร์ดสถิติ",
       },
       methodTitle: "หลักการประเมิน",
       method:
@@ -41,7 +39,6 @@ export const layoutMessages = defineMessages({
       analyze: "Analyze",
       crops: "Crops",
       history: "History",
-      analytics: "Insights",
     },
     account: {
       login: "Sign in",
@@ -57,13 +54,12 @@ export const layoutMessages = defineMessages({
     language: "Language",
     footer: {
       about:
-        "Turn N-P-K and pH soil test results into crop recommendations, soil improvement plans and return estimates, based on standard agronomy criteria.",
+        "Turn N-P-K and pH soil test results into crop recommendations and soil improvement plans, based on standard agronomy criteria.",
       servicesTitle: "Services",
       services: {
         analyze: "Soil test analysis",
         crops: "Crop requirement database",
         history: "Test history",
-        analytics: "Insights dashboard",
       },
       methodTitle: "How scoring works",
       method:

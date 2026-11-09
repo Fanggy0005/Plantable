@@ -7,46 +7,38 @@ import { toast } from "sonner"
 import { AnimatePresence, LayoutGroup, motion } from "motion/react"
 import {
   AlertTriangle,
+  Ban,
   Calendar,
-  CheckCircle2,
   CloudSun,
-  Coins,
   FileDown,
-  FlaskConical,
+  HardDrive,
   Leaf,
   ListOrdered,
   Loader2,
   RefreshCw,
   SearchX,
   Sprout,
-  TestTube2,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { EASE_OUT, FadeIn, Stagger, StaggerItem } from "@/components/motion"
-import { NPKRadarChart } from "@/components/charts/NPKRadarChart"
-import { PHScaleGauge } from "@/components/charts/PHScaleGauge"
-import { SuitabilityGauge } from "@/components/charts/SuitabilityGauge"
-import { CropIcon } from "@/components/shared/CropIcon"
+import { EASE_OUT, FadeIn } from "@/components/motion"
 import { PageHeader, SectionHeading } from "@/components/shared/PageHeader"
-import { StatCard } from "@/components/shared/StatCard"
 import { EmptyState } from "@/components/shared/States"
 import { CropRecommendationCard } from "@/features/recommendation/components/CropRecommendationCard"
+import { SelectedCropPanel } from "@/features/recommendation/components/SelectedCropPanel"
 import { recommendationMessages } from "@/features/recommendation/messages"
-import { SoilImprovementSection } from "@/features/soil-improvement/components/SoilImprovementSection"
+import { SoilSummary } from "@/features/soil-analysis/components/SoilSummary"
+import { SoilPlanSection } from "@/features/soil-improvement/components/SoilPlanSection"
 import { WeatherWidget } from "@/features/environment/components/WeatherWidget"
-import { CropEconomicsCard } from "@/features/economics/components/CropEconomicsCard"
-import { authClient } from "@/lib/auth-client"
-import { fetchSoilImprovement } from "@/lib/api"
+import { buildSoilPlan, fetchCropById } from "@/lib/api"
 import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
-import { levelFromScore } from "@/lib/score"
+import { CURRENT_CHECK_KEY, readCurrentCheck } from "@/lib/soil-check"
 import { cn } from "@/lib/utils"
-import type { AnalysisResult, RecommendedCrop, SoilImprovementPlan } from "@/types"
+import type { CropRequirement, PlanMode, RankedCrop, SoilPlan } from "@/types"
 
-type SectionId = "ranking" | "soil-plan" | "economics" | "weather"
+type SectionId = "ranking" | "soil-plan" | "weather"
 
 /** Sticky in-page navigation that highlights the section currently in view. */
 function SectionNav({ items }: { items: { id: SectionId; label: string; icon: LucideIcon }[] }) {
@@ -102,92 +94,6 @@ function SectionNav({ items }: { items: { id: SectionId; label: string; icon: Lu
   )
 }
 
-/** Right-hand panel describing the currently selected crop. */
-function SelectedCropPanel({
-  crop,
-  soil,
-}: {
-  crop: RecommendedCrop
-  soil: AnalysisResult["soil"]
-}) {
-  const t = useT(recommendationMessages).results
-  const common = useT(commonMessages)
-  const { pick } = useFormat()
-  const name = pick(crop.nameTh, crop.name)
-  const levelLabel = common.levels[crop.level ?? levelFromScore(crop.score)]
-
-  return (
-    <div className="space-y-4">
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={crop.plantId || crop.cropId}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25, ease: EASE_OUT }}
-          className="surface flex items-center gap-4 p-4"
-        >
-          <CropIcon name={crop.name} category={crop.category} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-muted-foreground">{t.selectedCrop}</p>
-            <p className="truncate text-xl font-bold tracking-tight text-foreground">{name}</p>
-            {crop.category && (
-              <p className="text-xs text-muted-foreground">{common.categories[crop.category] ?? crop.category}</p>
-            )}
-          </div>
-          <SuitabilityGauge score={crop.score} size={64} strokeWidth={6} />
-        </motion.div>
-      </AnimatePresence>
-
-      <Tabs defaultValue="radar" className="gap-3">
-        <TabsList className="h-10 w-full">
-          <TabsTrigger value="radar">
-            <FlaskConical />
-            N-P-K
-          </TabsTrigger>
-          <TabsTrigger value="ph">
-            <TestTube2 />
-            pH
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="radar">
-          <NPKRadarChart soil={soil} breakdown={crop.breakdown} cropName={name} size={260} />
-        </TabsContent>
-        <TabsContent value="ph">
-          <PHScaleGauge
-            currentPh={soil.ph}
-            targetMin={crop.cropRequirement?.phMin ?? 5.5}
-            targetMax={crop.cropRequirement?.phMax ?? 7.0}
-            cropName={name}
-          />
-        </TabsContent>
-      </Tabs>
-
-      <div className="surface space-y-3 p-4">
-        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <CheckCircle2 className="size-4 text-success" />
-          {t.summaryTitle}
-        </h4>
-        <p className="text-sm leading-relaxed text-muted-foreground">{t.summary(name, levelLabel, crop.score)}</p>
-        {soil.notes && (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{t.notes}:</span> {soil.notes}
-          </p>
-        )}
-        {crop.improvements?.length > 0 && (
-          <div className="flex items-start gap-2 rounded-xl bg-warning-soft p-3 text-sm">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-            <div>
-              <p className="text-xs font-semibold text-warning">{t.urgentFix}</p>
-              <p className="text-foreground/80">{crop.improvements[0]}</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function ResultsSkeleton() {
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
@@ -196,8 +102,8 @@ function ResultsSkeleton() {
         <Skeleton className="h-9 w-2/3 max-w-md" />
         <Skeleton className="h-5 w-1/2 max-w-sm" />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-24" />
         ))}
       </div>
@@ -213,19 +119,16 @@ function ResultsSkeleton() {
   )
 }
 
-const RESULT_KEY = "plantResult"
-
 // sessionStorage has no change events within the same tab; the value is written before navigating here
 const subscribeToNothing = () => () => {}
 
-function parseStoredResult(raw: string | null): AnalysisResult | null {
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as AnalysisResult
-  } catch (e) {
-    console.error("Failed to parse analysis results", e)
-    return null
-  }
+const MAX_AREA_RAI = 100_000
+const PLAN_DEBOUNCE_MS = 300
+
+interface PlanResult {
+  key: string
+  plan: SoilPlan | null
+  error: string | null
 }
 
 export default function ResultsPage() {
@@ -233,45 +136,79 @@ export default function ResultsPage() {
   const t = useT(recommendationMessages).results
   const common = useT(commonMessages)
   const fmt = useFormat()
-  const { data: session } = authClient.useSession()
-  const storedResult = useSyncExternalStore(
+  const stored = useSyncExternalStore(
     subscribeToNothing,
-    () => sessionStorage.getItem(RESULT_KEY),
+    () => sessionStorage.getItem(CURRENT_CHECK_KEY),
     () => null
   )
-  const result = useMemo(() => parseStoredResult(storedResult), [storedResult])
-  const [pickedCrop, setSelectedCrop] = useState<RecommendedCrop | null>(null)
+  const check = useMemo(() => readCurrentCheck(stored), [stored])
+  const ranked = useMemo(() => check?.result.ranked ?? [], [check])
+
+  const [pickedId, setPickedId] = useState<string | null>(null)
   // Default to the top-ranked crop until the user picks one
-  const selectedCrop = pickedCrop ?? result?.rankings[0] ?? null
+  const selectedCrop = ranked.find((c) => c.cropId === pickedId) ?? ranked[0] ?? null
+  const selectedCropId = selectedCrop?.cropId ?? null
   const [categoryFilter, setCategoryFilter] = useState<string>("All")
   const [exporting, setExporting] = useState(false)
-  const [fetchedSoilPlan, setSoilPlan] = useState<SoilImprovementPlan | null>(null)
-  const soilPlan = fetchedSoilPlan ?? result?.soilImprovement ?? null
   const panelRef = useRef<HTMLDivElement>(null)
-  const [viewedAt] = useState(() => Date.now())
+
+  // Crop requirements, loaded on demand for the side panel
+  const [requirements, setRequirements] = useState<Record<string, CropRequirement | null>>({})
+
+  // Soil plan inputs and the latest response
+  const [areaInput, setAreaInput] = useState("1")
+  const [mode, setMode] = useState<PlanMode>("combined")
+  const [planResult, setPlanResult] = useState<PlanResult | null>(null)
+  const area = parseFloat(areaInput)
+  const areaRai = area > 0 && area <= MAX_AREA_RAI ? area : null
+  const planKey = check && selectedCropId && areaRai ? `${selectedCropId}|${areaRai}|${mode}` : null
 
   useEffect(() => {
-    // Read storage directly: during hydration `result` is still the server snapshot (null)
-    if (!parseStoredResult(sessionStorage.getItem(RESULT_KEY))) {
+    // Read storage directly: during hydration `check` is still the server snapshot (null)
+    if (!readCurrentCheck(sessionStorage.getItem(CURRENT_CHECK_KEY))) {
       router.push("/analyze")
     }
   }, [router])
 
-  // Fetch or update soil improvement plan tailored to selected crop
   useEffect(() => {
-    if (!result) return
-    const cropId = selectedCrop?.cropId || selectedCrop?.plantId
-    fetchSoilImprovement(result.soil, cropId)
-      .then((plan) => setSoilPlan(plan))
-      .catch((err) => console.error("Failed to fetch soil improvement plan", err))
-  }, [result, selectedCrop])
+    if (!selectedCropId || selectedCropId in requirements) return
+    fetchCropById(selectedCropId)
+      .then((crop) => setRequirements((prev) => ({ ...prev, [selectedCropId]: crop.requirement })))
+      .catch((err) => console.error("Failed to load crop requirement", err))
+  }, [selectedCropId, requirements])
+
+  useEffect(() => {
+    if (!check || !selectedCropId || !areaRai || !planKey) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      buildSoilPlan({ cropId: selectedCropId, areaRai, mode, site: check.site, soil: check.soil })
+        .then((plan) => !cancelled && setPlanResult({ key: planKey, plan, error: null }))
+        .catch((err: Error) => !cancelled && setPlanResult({ key: planKey, plan: null, error: err.message }))
+    }, PLAN_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [check, selectedCropId, areaRai, mode, planKey])
+
+  const planLoading = planKey !== null && planResult?.key !== planKey
+  // Keep the previous plan on screen (dimmed) while the next one loads
+  const plan = planResult?.plan ?? null
+  const planError = planResult?.key === planKey ? planResult.error : null
 
   const handleExportPDF = async () => {
-    if (!result) return
+    if (!check) return
     setExporting(true)
     try {
       const { exportToPDF } = await import("@/lib/export-pdf")
-      await exportToPDF(result, { locale: fmt.locale })
+      await exportToPDF(
+        {
+          check,
+          plan: planResult?.key === planKey ? plan : null,
+          planCropName: selectedCrop ? fmt.pick(selectedCrop.cropNameTh, selectedCrop.cropName) : undefined,
+        },
+        { locale: fmt.locale }
+      )
       toast.success(t.exportSuccess)
     } catch (error) {
       console.error("PDF export failed:", error)
@@ -281,33 +218,28 @@ export default function ResultsPage() {
     }
   }
 
-  const handleSelectCrop = (crop: RecommendedCrop) => {
-    setSelectedCrop(crop)
+  const handleSelectCrop = (crop: RankedCrop) => {
+    setPickedId(crop.cropId)
     // On small screens the panel sits above the list, so bring it into view
     if (window.matchMedia("(max-width: 1023px)").matches) {
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
   }
 
-  if (!result) return <ResultsSkeleton />
+  if (!check) return <ResultsSkeleton />
 
-  const categories = [
-    "All",
-    ...Array.from(new Set(result.rankings.map((r) => r.category).filter(Boolean) as string[])),
-  ]
-
-  const filteredRankings = result.rankings
+  const { result } = check
+  const categories = ["All", ...Array.from(new Set(ranked.map((r) => r.category).filter(Boolean)))]
+  const filteredRankings = ranked
     .map((crop, index) => ({ crop, rank: index + 1 }))
     .filter(({ crop }) => categoryFilter === "All" || crop.category === categoryFilter)
 
-  const topCrop = result.rankings[0]
-  const selectedName = selectedCrop ? fmt.pick(selectedCrop.nameTh, selectedCrop.name) : undefined
-  const decimalsOf = (n: number) => (Number.isInteger(n) ? 0 : 1)
+  const topCrop = ranked[0]
+  const selectedName = selectedCrop ? fmt.pick(selectedCrop.cropNameTh, selectedCrop.cropName) : undefined
 
   const sections: { id: SectionId; label: string; icon: LucideIcon }[] = [
     { id: "ranking", label: t.sections.ranking, icon: ListOrdered },
     { id: "soil-plan", label: t.sections.soilPlan, icon: Leaf },
-    { id: "economics", label: t.sections.economics, icon: Coins },
     { id: "weather", label: t.sections.weather, icon: CloudSun },
   ]
 
@@ -317,27 +249,17 @@ export default function ResultsPage() {
         eyebrow={
           <>
             <Calendar className="size-3.5" />
-            {fmt.date(result.createdAt ?? viewedAt)}
+            {fmt.date(check.createdAt)}
           </>
         }
         title={t.title}
         description={
           <span className="flex flex-col gap-2.5">
-            {topCrop && <span>{t.topPick(fmt.pick(topCrop.nameTh, topCrop.name), topCrop.score)}</span>}
-            {session?.user ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">
-                <CheckCircle2 className="size-3.5" />
-                {t.savedAccount}
-              </span>
-            ) : (
-              <span className="inline-flex w-fit flex-wrap items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning">
-                {t.savedLocal}
-                <span aria-hidden>·</span>
-                <Link href="/login" className="font-semibold underline underline-offset-2">
-                  {t.signInToSync}
-                </Link>
-              </span>
-            )}
+            <span>{topCrop ? t.topPick(fmt.pick(topCrop.cropNameTh, topCrop.cropName), topCrop.score) : t.noneRanked}</span>
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <HardDrive className="size-3.5" />
+              {t.savedLocal}
+            </span>
           </span>
         }
         actions={
@@ -354,28 +276,21 @@ export default function ResultsPage() {
         }
       />
 
-      {/* Measured soil values */}
-      <section aria-label={t.soilValues}>
-        <Stagger immediate className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(
-            [
-              ["nitrogen", "N", result.soil.nitrogen, common.units.mgPerKg],
-              ["phosphorus", "P", result.soil.phosphorus, common.units.mgPerKg],
-              ["potassium", "K", result.soil.potassium, common.units.mgPerKg],
-              ["ph", "pH", result.soil.ph, undefined],
-            ] as const
-          ).map(([key, short, value, unit]) => (
-            <StaggerItem key={key}>
-              <StatCard
-                label={`${short} · ${common.nutrients[key]}`}
-                value={value}
-                decimals={key === "ph" ? 1 : decimalsOf(value)}
-                unit={unit}
-              />
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </section>
+      {result.warnings.length > 0 && (
+        <div role="alert" className="rounded-2xl border border-warning/30 bg-warning-soft p-4 sm:p-5">
+          <h2 className="mb-1.5 flex items-center gap-2 text-sm font-bold text-warning">
+            <AlertTriangle className="size-4.5" />
+            {t.warningsTitle}
+          </h2>
+          <ul className="space-y-1 text-sm leading-relaxed text-foreground/85">
+            {result.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <SoilSummary site={check.site} soil={check.soil} levels={result.levels} />
 
       <SectionNav items={sections} />
 
@@ -386,57 +301,67 @@ export default function ResultsPage() {
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           {/* Selected crop panel: above the list on mobile, sticky sidebar on desktop */}
           <aside ref={panelRef} className="scroll-mt-32 lg:sticky lg:top-36 lg:order-last">
-            {selectedCrop && <SelectedCropPanel crop={selectedCrop} soil={result.soil} />}
+            {selectedCrop && (
+              <SelectedCropPanel
+                crop={selectedCrop}
+                check={check}
+                requirement={requirements[selectedCrop.cropId] ?? null}
+              />
+            )}
           </aside>
 
           <div className="min-w-0 space-y-4">
-            <LayoutGroup id="category-filter">
-              <div
-                role="radiogroup"
-                aria-label={t.filterLabel}
-                className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0"
-              >
-                {categories.map((cat) => {
-                  const active = categoryFilter === cat
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setCategoryFilter(cat)}
-                      className={cn(
-                        "relative h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
-                        active
-                          ? "border-primary text-primary-foreground"
-                          : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                      )}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId="category-pill"
-                          className="absolute inset-0 rounded-full bg-primary"
-                          transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                        />
-                      )}
-                      <span className="relative">
-                        {cat === "All" ? t.allCount(result.rankings.length) : (common.categories[cat] ?? cat)}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </LayoutGroup>
+            {ranked.length > 0 && (
+              <LayoutGroup id="category-filter">
+                <div
+                  role="radiogroup"
+                  aria-label={t.filterLabel}
+                  className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0"
+                >
+                  {categories.map((cat) => {
+                    const active = categoryFilter === cat
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setCategoryFilter(cat)}
+                        className={cn(
+                          "relative h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
+                          active
+                            ? "border-primary text-primary-foreground"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                        )}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId="category-pill"
+                            className="absolute inset-0 rounded-full bg-primary"
+                            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                          />
+                        )}
+                        <span className="relative">
+                          {cat === "All" ? t.allCount(ranked.length) : (common.categories[cat] ?? cat)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </LayoutGroup>
+            )}
 
             {filteredRankings.length === 0 ? (
               <EmptyState
                 icon={SearchX}
-                title={t.noCropsInCategory}
-                description={t.noCropsInCategoryDesc}
+                title={ranked.length === 0 ? t.noneRanked : t.noCropsInCategory}
+                description={ranked.length === 0 ? t.ineligibleDesc : t.noCropsInCategoryDesc}
                 action={
-                  <Button variant="outline" onClick={() => setCategoryFilter("All")}>
-                    {t.allCount(result.rankings.length)}
-                  </Button>
+                  ranked.length > 0 && (
+                    <Button variant="outline" onClick={() => setCategoryFilter("All")}>
+                      {t.allCount(ranked.length)}
+                    </Button>
+                  )
                 }
               />
             ) : (
@@ -444,7 +369,7 @@ export default function ResultsPage() {
                 <AnimatePresence mode="popLayout" initial={false}>
                   {filteredRankings.map(({ crop, rank }, i) => (
                     <motion.div
-                      key={crop.plantId || crop.cropId || rank}
+                      key={crop.cropId}
                       layout
                       initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease: EASE_OUT, delay: Math.min(i, 6) * 0.04 } }}
@@ -453,15 +378,35 @@ export default function ResultsPage() {
                       <CropRecommendationCard
                         crop={crop}
                         rank={rank}
-                        isSelected={
-                          (selectedCrop?.plantId || selectedCrop?.cropId) === (crop.plantId || crop.cropId)
-                        }
-                        onSelectForComparison={handleSelectCrop}
+                        isSelected={selectedCropId === crop.cropId}
+                        onSelect={handleSelectCrop}
                       />
                     </motion.div>
                   ))}
                 </AnimatePresence>
               </motion.div>
+            )}
+
+            {result.ineligible.length > 0 && (
+              <details className="surface group p-4 sm:p-5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-foreground">
+                  <Ban className="size-4 text-muted-foreground" />
+                  {t.ineligibleTitle(result.ineligible.length)}
+                </summary>
+                <p className="mt-2 text-xs text-muted-foreground">{t.ineligibleDesc}</p>
+                <ul className="mt-3 divide-y divide-border">
+                  {result.ineligible.map((crop) => (
+                    <li key={crop.cropId} className="py-2.5">
+                      <p className="text-sm font-semibold text-foreground">{fmt.pick(crop.cropNameTh, crop.cropName)}</p>
+                      <ul className="mt-0.5 text-xs text-muted-foreground">
+                        {crop.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         </div>
@@ -470,31 +415,23 @@ export default function ResultsPage() {
       {/* 2. Soil improvement plan */}
       <section id="soil-plan" className="scroll-mt-32">
         <FadeIn>
-          {soilPlan ? (
-            <SoilImprovementSection plan={soilPlan} cropNameTh={selectedName} />
-          ) : (
-            <Skeleton className="h-72" />
-          )}
+          <SoilPlanSection
+            plan={plan}
+            cropName={selectedName}
+            areaRai={areaInput}
+            onAreaChange={setAreaInput}
+            mode={mode}
+            onModeChange={setMode}
+            loading={planLoading}
+            error={planError}
+          />
         </FadeIn>
       </section>
 
-      {/* 3. Economics */}
-      <section id="economics" className="scroll-mt-32">
-        <FadeIn>
-          {selectedCrop && (
-            <CropEconomicsCard
-              cropId={selectedCrop.cropId || selectedCrop.plantId}
-              cropNameTh={selectedName ?? selectedCrop.nameTh}
-              soil={result.soil}
-            />
-          )}
-        </FadeIn>
-      </section>
-
-      {/* 4. Weather */}
+      {/* 3. Weather */}
       <section id="weather" className="scroll-mt-32">
         <FadeIn>
-          <WeatherWidget initialProvince={result.soil.province || "nakhon_ratchasima"} />
+          <WeatherWidget initialProvince={check.province} />
         </FadeIn>
       </section>
     </div>

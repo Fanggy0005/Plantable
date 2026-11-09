@@ -8,15 +8,6 @@ import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { soilAnalysisMessages } from "../messages"
 
-type Status = "low" | "ok" | "high" | "empty"
-
-const STATUS_STYLE: Record<Status, { dot: string; text: string; marker: string }> = {
-  low: { dot: "bg-warning", text: "text-warning", marker: "bg-warning" },
-  ok: { dot: "bg-success", text: "text-success", marker: "bg-success" },
-  high: { dot: "bg-info", text: "text-info", marker: "bg-info" },
-  empty: { dot: "bg-muted-foreground/40", text: "text-muted-foreground", marker: "bg-muted-foreground/40" },
-}
-
 const clampPct = (n: number) => Math.max(0, Math.min(100, n))
 
 /** Hint line plus the label to look for on a lab report, so users can match fields to their sheet. */
@@ -29,7 +20,7 @@ function FieldHelp({ hint, reportLabel }: { hint: string; reportLabel?: string }
         <p className="flex items-start gap-1.5">
           <FileText className="mt-px size-3.5 shrink-0" />
           <span>
-            <span className="font-medium text-foreground/80">{t.form.onReport}</span> {reportLabel}
+            <span className="font-medium text-foreground/80">{t.soil.onReport}</span> {reportLabel}
           </span>
         </p>
       )}
@@ -37,11 +28,22 @@ function FieldHelp({ hint, reportLabel }: { hint: string; reportLabel?: string }
   )
 }
 
+function FieldLabel({ htmlFor, symbol, label }: { htmlFor?: string; symbol: string; label: string }) {
+  return (
+    <Label htmlFor={htmlFor} className="text-sm font-semibold text-foreground">
+      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-secondary px-1 text-xs font-bold text-primary">
+        {symbol}
+      </span>
+      {label}
+    </Label>
+  )
+}
+
 const inputClass =
   "h-12 rounded-xl border-input bg-card pr-16 text-lg font-semibold tabular-nums shadow-xs hover:border-primary/30 focus-visible:border-primary"
 
-/** Number input with a unit suffix and a live meter comparing the value against a healthy band. */
-export function NutrientField({
+/** Number input with a unit suffix. */
+export function NumberField({
   id,
   symbol,
   label,
@@ -51,7 +53,7 @@ export function NutrientField({
   value,
   onChange,
   placeholder,
-  range,
+  max,
 }: {
   id: string
   symbol: string
@@ -62,29 +64,11 @@ export function NutrientField({
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   placeholder: string
-  range: { min: number; max: number; scaleMax: number }
+  max?: number
 }) {
-  const t = useT(soilAnalysisMessages)
-  const num = parseFloat(value)
-  const hasValue = !isNaN(num)
-  const status: Status = !hasValue ? "empty" : num < range.min ? "low" : num > range.max ? "high" : "ok"
-  const style = STATUS_STYLE[status]
-
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id} className="text-sm font-semibold text-foreground">
-          <span className="inline-flex size-6 items-center justify-center rounded-md bg-secondary text-xs font-bold text-primary">
-            {symbol}
-          </span>
-          {label}
-        </Label>
-        <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold", style.text)}>
-          <span className={cn("size-1.5 rounded-full", style.dot)} />
-          {t.form.status[status]}
-        </span>
-      </div>
-
+      <FieldLabel htmlFor={id} symbol={symbol} label={label} />
       <div className="relative">
         <Input
           id={id}
@@ -92,6 +76,7 @@ export function NutrientField({
           type="number"
           inputMode="decimal"
           min="0"
+          max={max}
           step="any"
           value={value}
           onChange={onChange}
@@ -103,47 +88,16 @@ export function NutrientField({
           {unit}
         </span>
       </div>
-
-      {/* Range meter: shaded healthy band + animated marker */}
-      <div className="relative h-1.5 rounded-full bg-muted" aria-hidden>
-        <div
-          className="absolute inset-y-0 rounded-full bg-success/25"
-          style={{
-            left: `${(range.min / range.scaleMax) * 100}%`,
-            width: `${((range.max - range.min) / range.scaleMax) * 100}%`,
-          }}
-        />
-        {hasValue && (
-          <motion.span
-            className={cn("absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card", style.marker)}
-            initial={false}
-            animate={{ left: `${clampPct((num / range.scaleMax) * 100)}%` }}
-            transition={{ type: "spring", stiffness: 260, damping: 28 }}
-          />
-        )}
-      </div>
       <FieldHelp hint={hint} reportLabel={reportLabel} />
     </div>
   )
 }
 
-type PhStatus = "strongAcid" | "acid" | "ideal" | "alkaline"
+/** Accepted pH input range, matching the API validation. */
+export const PH_INPUT = { min: 3, max: 10 } as const
+const PH_SCALE = { min: 3, max: 10, idealMin: 5.5, idealMax: 7.0 }
 
-const PH_TONE: Record<PhStatus, string> = {
-  strongAcid: "text-destructive",
-  acid: "text-warning",
-  ideal: "text-success",
-  alkaline: "text-info",
-}
-
-const PH_DOT: Record<PhStatus, string> = {
-  strongAcid: "bg-destructive",
-  acid: "bg-warning",
-  ideal: "bg-success",
-  alkaline: "bg-info",
-}
-
-/** pH input with a colored acid→alkaline gradient scale and an animated marker. */
+/** pH input with a colored acid→alkaline scale and an animated marker. */
 export function PhField({
   label,
   hint,
@@ -151,7 +105,6 @@ export function PhField({
   value,
   onChange,
   placeholder,
-  range,
 }: {
   label: string
   hint: string
@@ -159,43 +112,14 @@ export function PhField({
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   placeholder: string
-  range: { min: number; max: number; scaleMin: number; scaleMax: number }
 }) {
-  const t = useT(soilAnalysisMessages)
   const num = parseFloat(value)
   const hasValue = !isNaN(num)
-  const status: PhStatus | null = !hasValue
-    ? null
-    : num < 4.5
-      ? "strongAcid"
-      : num < range.min
-        ? "acid"
-        : num <= range.max
-          ? "ideal"
-          : "alkaline"
-  const span = range.scaleMax - range.scaleMin
-  const pos = (v: number) => clampPct(((v - range.scaleMin) / span) * 100)
+  const pos = (v: number) => clampPct(((v - PH_SCALE.min) / (PH_SCALE.max - PH_SCALE.min)) * 100)
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor="ph" className="text-sm font-semibold text-foreground">
-          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-secondary px-1 text-xs font-bold text-primary">
-            pH
-          </span>
-          {label}
-        </Label>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 text-xs font-semibold",
-            status ? PH_TONE[status] : "text-muted-foreground"
-          )}
-        >
-          <span className={cn("size-1.5 rounded-full", status ? PH_DOT[status] : "bg-muted-foreground/40")} />
-          {status ? t.form.phStatus[status] : t.form.status.empty}
-        </span>
-      </div>
-
+      <FieldLabel htmlFor="ph" symbol="pH" label={label} />
       <div className="relative">
         <Input
           id="ph"
@@ -203,8 +127,8 @@ export function PhField({
           type="number"
           inputMode="decimal"
           step="0.1"
-          min="0"
-          max="14"
+          min={PH_INPUT.min}
+          max={PH_INPUT.max}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
@@ -212,7 +136,7 @@ export function PhField({
           className={inputClass}
         />
         <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-xs font-medium text-muted-foreground">
-          0–14
+          {PH_INPUT.min}–{PH_INPUT.max}
         </span>
       </div>
 
@@ -224,10 +148,9 @@ export function PhField({
               "linear-gradient(90deg, var(--destructive), var(--chart-5), var(--warning), var(--success) 45%, var(--success) 58%, var(--chart-4), var(--info))",
           }}
         >
-          {/* Ideal band outline */}
           <div
             className="absolute -inset-y-0.5 rounded-full ring-2 ring-card/90"
-            style={{ left: `${pos(range.min)}%`, width: `${pos(range.max) - pos(range.min)}%` }}
+            style={{ left: `${pos(PH_SCALE.idealMin)}%`, width: `${pos(PH_SCALE.idealMax) - pos(PH_SCALE.idealMin)}%` }}
           />
           {hasValue && (
             <motion.span
@@ -238,13 +161,80 @@ export function PhField({
             />
           )}
         </div>
-        <div className="mt-1.5 flex justify-between text-[11px] font-medium text-muted-foreground">
-          <span>{t.form.phScale.acid}</span>
-          <span>{t.form.phScale.neutral}</span>
-          <span>{t.form.phScale.alkaline}</span>
+        <div className="relative mt-1.5 h-4 text-[11px] font-medium text-muted-foreground tabular-nums">
+          {[3, 5.5, 7, 10].map((tick) => (
+            <span
+              key={tick}
+              className="absolute -translate-x-1/2 first:translate-x-0 last:-translate-x-full"
+              style={{ left: `${pos(tick)}%` }}
+            >
+              {tick}
+            </span>
+          ))}
         </div>
       </div>
       <FieldHelp hint={hint} reportLabel={reportLabel} />
     </div>
+  )
+}
+
+/** A row of mutually exclusive options rendered as large tap targets. */
+export function ChoiceField<T extends string>({
+  name,
+  label,
+  symbol,
+  options,
+  value,
+  onChange,
+  columns = 3,
+  hint,
+}: {
+  name: string
+  label: string
+  symbol?: string
+  options: { value: T; label: string; desc?: string }[]
+  value: T | ""
+  onChange: (value: T) => void
+  columns?: 2 | 3
+  hint?: string
+}) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+        {symbol && (
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-secondary px-1 text-xs font-bold text-primary">
+            {symbol}
+          </span>
+        )}
+        {label}
+      </legend>
+      <div role="radiogroup" className={cn("grid gap-2", columns === 2 ? "grid-cols-2" : "grid-cols-3")}>
+        {options.map((option) => {
+          const active = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              name={name}
+              aria-checked={active}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "flex min-h-12 flex-col items-start justify-center rounded-xl border px-3 py-2 text-left transition-colors",
+                active
+                  ? "border-primary bg-secondary ring-2 ring-primary/15"
+                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/60"
+              )}
+            >
+              <span className={cn("text-sm leading-snug font-semibold", active ? "text-primary" : "text-foreground")}>
+                {option.label}
+              </span>
+              {option.desc && <span className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{option.desc}</span>}
+            </button>
+          )
+        })}
+      </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </fieldset>
   )
 }

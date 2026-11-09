@@ -3,43 +3,21 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AnimatePresence, motion } from "motion/react"
+import { motion } from "motion/react"
 import { toast } from "sonner"
-import {
-  ArrowRight,
-  BadgeCheck,
-  CalendarDays,
-  Heart,
-  Loader2,
-  LogOut,
-  Mail,
-  Save,
-  Search,
-  TestTube2,
-  Trash2,
-  UserRound,
-} from "lucide-react"
+import { ArrowRight, BadgeCheck, CalendarDays, Loader2, LogOut, Mail, Map as MapIcon, Save, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FadeIn, Stagger, StaggerItem } from "@/components/motion"
-import { CropIcon } from "@/components/shared/CropIcon"
 import { SectionHeading } from "@/components/shared/PageHeader"
 import { StatCard } from "@/components/shared/StatCard"
-import { EmptyState } from "@/components/shared/States"
 import { authClient } from "@/lib/auth-client"
-import {
-  fetchUserProfile,
-  updateUserProfile,
-  fetchFavorites,
-  removeFavorite,
-} from "@/lib/api"
+import { fetchUserProfile, updateUserProfile } from "@/lib/api"
 import { useFormat, useT } from "@/lib/i18n"
-import { commonMessages } from "@/lib/i18n/messages/common"
 import { profileMessages } from "@/features/profile/messages"
-import type { Crop, UserProfile } from "@/types"
+import type { UserProfile } from "@/types"
 
 function ProfileSkeleton() {
   return (
@@ -61,12 +39,10 @@ function ProfileSkeleton() {
 export default function ProfilePage() {
   const router = useRouter()
   const t = useT(profileMessages)
-  const c = useT(commonMessages)
   const fmt = useFormat()
   const { data: session, isPending: sessionPending } = authClient.useSession()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [favorites, setFavorites] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
   const [editingName, setEditingName] = useState("")
   const [savingName, setSavingName] = useState(false)
@@ -80,14 +56,11 @@ export default function ProfilePage() {
     if (!session?.user) return
 
     let cancelled = false
-    Promise.all([fetchUserProfile().catch(() => null), fetchFavorites().catch(() => [])])
-      .then(([profileData, favData]) => {
+    fetchUserProfile()
+      .then((profileData) => {
         if (cancelled) return
-        if (profileData) {
-          setProfile(profileData)
-          setEditingName(profileData.name || "")
-        }
-        setFavorites(favData)
+        setProfile(profileData)
+        setEditingName(profileData.name || "")
       })
       .catch((e) => console.error("Failed to load profile data", e))
       .finally(() => {
@@ -110,18 +83,6 @@ export default function ProfilePage() {
       toast.error(t.edit.failed)
     } finally {
       setSavingName(false)
-    }
-  }
-
-  const handleRemoveFavorite = async (crop: Crop) => {
-    try {
-      const ok = await removeFavorite(crop.id)
-      if (!ok) throw new Error("Remove favorite failed")
-      setFavorites((prev) => prev.filter((f) => f.id !== crop.id))
-      toast.success(t.favorites.removed(fmt.pick(crop.nameTh, crop.name)))
-    } catch (err) {
-      console.error("Failed to remove favorite", err)
-      toast.error(t.favorites.removeFailed)
     }
   }
 
@@ -188,12 +149,12 @@ export default function ProfilePage() {
       </FadeIn>
 
       {/* Stats */}
-      <Stagger immediate className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <Stagger immediate className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StaggerItem>
           <StatCard
-            label={t.stats.analyses}
-            value={profile?._count?.analyses ?? 0}
-            icon={TestTube2}
+            label={t.stats.plots}
+            value={profile?._count.plots ?? 0}
+            icon={MapIcon}
             hint={
               <Link
                 href="/history"
@@ -204,9 +165,6 @@ export default function ProfilePage() {
               </Link>
             }
           />
-        </StaggerItem>
-        <StaggerItem>
-          <StatCard label={t.stats.favorites} value={favorites.length} icon={Heart} />
         </StaggerItem>
         <StaggerItem>
           <div className="surface-interactive h-full p-4 sm:p-5">
@@ -221,133 +179,53 @@ export default function ProfilePage() {
         </StaggerItem>
       </Stagger>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.4fr]">
-        {/* Edit details */}
-        <FadeIn className="surface space-y-6 p-6 sm:p-7">
-          <SectionHeading icon={UserRound} title={t.edit.title} description={t.edit.description} />
+      {/* Edit details */}
+      <FadeIn className="surface max-w-2xl space-y-6 p-6 sm:p-7">
+        <SectionHeading icon={UserRound} title={t.edit.title} description={t.edit.description} />
 
-          <form onSubmit={handleUpdateName} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-sm font-semibold text-foreground">
-                {t.edit.label}
-              </Label>
-              <Input
-                id="displayName"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                placeholder={t.edit.placeholder}
-                className="h-11 rounded-xl border-input bg-card text-base shadow-xs md:text-sm"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-foreground">
-                {t.edit.email}
-              </Label>
-              <Input
-                id="email"
-                value={session?.user?.email ?? ""}
-                disabled
-                className="h-11 rounded-xl bg-muted text-base md:text-sm"
-              />
-              <p className="text-xs text-muted-foreground">{t.edit.emailHint}</p>
-            </div>
-
-            <Button type="submit" className="h-10 w-full sm:w-auto" disabled={savingName || nameUnchanged}>
-              {savingName ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  {t.edit.saving}
-                </>
-              ) : (
-                <>
-                  <Save />
-                  {t.edit.save}
-                </>
-              )}
-            </Button>
-          </form>
-        </FadeIn>
-
-        {/* Favorites */}
-        <FadeIn delay={0.05} className="surface space-y-5 p-6 sm:p-7">
-          <SectionHeading
-            icon={Heart}
-            title={`${t.favorites.title} (${favorites.length})`}
-            description={t.favorites.description}
-            actions={
-              favorites.length > 0 && (
-                <Button variant="ghost" size="sm" render={<Link href="/crops" />} nativeButton={false}>
-                  <Search />
-                  {t.favorites.browse}
-                </Button>
-              )
-            }
-          />
-
-          {favorites.length === 0 ? (
-            <EmptyState
-              icon={Heart}
-              title={t.favorites.emptyTitle}
-              description={t.favorites.emptyBody}
-              action={
-                <Button render={<Link href="/crops" />} nativeButton={false}>
-                  {t.favorites.emptyAction}
-                  <ArrowRight />
-                </Button>
-              }
+        <form onSubmit={handleUpdateName} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="displayName" className="text-sm font-semibold text-foreground">
+              {t.edit.label}
+            </Label>
+            <Input
+              id="displayName"
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              placeholder={t.edit.placeholder}
+              className="h-11 rounded-xl border-input bg-card text-base shadow-xs md:text-sm"
+              required
             />
-          ) : (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <AnimatePresence initial={false}>
-                {favorites.map((crop) => {
-                  const name = fmt.pick(crop.nameTh, crop.name)
-                  const secondary = fmt.locale === "th" ? crop.name : crop.nameTh
-                  return (
-                    <motion.li
-                      key={crop.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                      className="group relative flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/25 hover:bg-secondary/40"
-                    >
-                      <CropIcon name={crop.name} category={crop.category} />
-                      <Link
-                        href={`/crops/${crop.id}`}
-                        className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-xl"
-                        aria-label={`${t.favorites.open}: ${name}`}
-                      >
-                        <p className="truncate text-sm font-bold text-foreground">{name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {secondary} · {c.categories[crop.category] ?? crop.category}
-                        </p>
-                      </Link>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="relative z-10 size-10 text-muted-foreground hover:bg-danger-soft hover:text-destructive"
-                              onClick={() => handleRemoveFavorite(crop)}
-                              aria-label={t.favorites.remove}
-                            />
-                          }
-                        >
-                          <Trash2 />
-                        </TooltipTrigger>
-                        <TooltipContent>{t.favorites.remove}</TooltipContent>
-                      </Tooltip>
-                    </motion.li>
-                  )
-                })}
-              </AnimatePresence>
-            </ul>
-          )}
-        </FadeIn>
-      </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+              {t.edit.email}
+            </Label>
+            <Input
+              id="email"
+              value={session?.user?.email ?? ""}
+              disabled
+              className="h-11 rounded-xl bg-muted text-base md:text-sm"
+            />
+            <p className="text-xs text-muted-foreground">{t.edit.emailHint}</p>
+          </div>
+
+          <Button type="submit" className="h-10 w-full sm:w-auto" disabled={savingName || nameUnchanged}>
+            {savingName ? (
+              <>
+                <Loader2 className="animate-spin" />
+                {t.edit.saving}
+              </>
+            ) : (
+              <>
+                <Save />
+                {t.edit.save}
+              </>
+            )}
+          </Button>
+        </form>
+      </FadeIn>
     </div>
   )
 }

@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { motion } from "motion/react"
 import { toast } from "sonner"
 import {
-  BarChart3,
   BookOpen,
   ChevronDown,
   History,
@@ -107,7 +106,6 @@ export function Navbar() {
     { href: "/analyze", label: t.nav.analyze, pick: (m: LayoutMessages) => m.nav.analyze, icon: TestTube2 },
     { href: "/crops", label: t.nav.crops, pick: (m: LayoutMessages) => m.nav.crops, icon: BookOpen },
     { href: "/history", label: t.nav.history, pick: (m: LayoutMessages) => m.nav.history, icon: History },
-    { href: "/analytics", label: t.nav.analytics, pick: (m: LayoutMessages) => m.nav.analytics, icon: BarChart3 },
   ]
 
   const handleSignOut = async () => {

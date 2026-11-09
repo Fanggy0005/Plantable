@@ -1,4 +1,4 @@
-import type { RecommendationLevel } from "@/types"
+import type { Difficulty, NutrientLevel, RecommendationLevel } from "@/types"
 
 export type ScoreTone = "excellent" | "good" | "fair" | "poor" | "bad"
 
@@ -36,3 +36,22 @@ export const TONE_BADGE: Record<ScoreTone, string> = {
   poor: "bg-warning-soft text-chart-5 border-chart-5/25",
   bad: "bg-danger-soft text-destructive border-destructive/20",
 }
+
+/** Badge variant for how much soil work a crop needs. */
+export const DIFFICULTY_VARIANT: Record<Difficulty, "success" | "warning" | "destructive" | "muted"> = {
+  easy: "success",
+  moderate: "warning",
+  hard: "destructive",
+  not_feasible: "muted",
+}
+
+/** Badge variant for a nutrient level. "High" means "enough", not "too much". */
+export const LEVEL_VARIANT: Record<NutrientLevel, "warning" | "info" | "success"> = {
+  low: "warning",
+  medium: "info",
+  high: "success",
+}
+
+const LEVEL_RANK: Record<NutrientLevel, number> = { low: 0, medium: 1, high: 2 }
+
+export const meetsLevel = (actual: NutrientLevel, minimum: NutrientLevel) => LEVEL_RANK[actual] >= LEVEL_RANK[minimum]

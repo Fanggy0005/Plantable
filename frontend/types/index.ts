@@ -1,41 +1,164 @@
-export interface SoilInput {
-  nitrogen: number
-  phosphorus: number
-  potassium: number
+// Shapes of the v2 API (see docs/api-spec.md). String unions match the backend engine value-for-value.
+
+export type LandType = "lowland" | "upland"
+export type WaterSupply = "rainfed" | "seasonal_irrigation" | "year_round"
+export type SoilTexture = "clay" | "loam" | "sandy"
+export type NutrientLevel = "low" | "medium" | "high"
+export type Difficulty = "easy" | "moderate" | "hard" | "not_feasible"
+export type PlanMode = "chemical" | "organic" | "combined"
+
+export type RecommendationLevel = "Excellent" | "Good" | "Fair" | "Poor" | "Not Recommended"
+
+export interface SiteInput {
+  landType: LandType
+  waterSupply: WaterSupply
+  soilTexture: SoilTexture
+}
+
+export interface LabSoilInput {
+  inputMode: "lab"
   ph: number
-  organicMatter?: number | null
-  moisture?: number | null
-  notes?: string | null
-  province?: string | null
-  region?: string | null
-  season?: string | null
+  organicMatterPct: number
+  phosphorusMgKg: number
+  potassiumMgKg: number
 }
 
-export type RecommendationLevel =
-  | "Excellent"
-  | "Good"
-  | "Fair"
-  | "Poor"
-  | "Not Recommended"
+export interface TestKitSoilInput {
+  inputMode: "test_kit"
+  ph: number
+  nitrogenLevel: NutrientLevel
+  phosphorusLevel: NutrientLevel
+  potassiumLevel: NutrientLevel
+}
 
-export interface CropRequirement {
-  id: string
+export type SoilInput = LabSoilInput | TestKitSoilInput
+
+// ------------------------------------------------------------------
+// Recommendations
+// ------------------------------------------------------------------
+
+export interface SoilLevels {
+  organicMatter: NutrientLevel
+  nitrogen: NutrientLevel
+  phosphorus: NutrientLevel
+  potassium: NutrientLevel
+  /** True when a level was not measured and was inferred from another one. */
+  organicMatterEstimated: boolean
+  nitrogenEstimated: boolean
+}
+
+export type PenaltyFactor =
+  | "texture"
+  | "ph_low"
+  | "ph_high"
+  | "organic_matter"
+  | "nitrogen"
+  | "phosphorus"
+  | "potassium"
+
+export interface Penalty {
+  factor: PenaltyFactor
+  points: number
+}
+
+export interface RankedCrop {
   cropId: string
-  nitrogenMin: number
-  nitrogenMax: number
-  nitrogenOptimal: number
-  phosphorusMin: number
-  phosphorusMax: number
-  phosphorusOptimal: number
-  potassiumMin: number
-  potassiumMax: number
-  potassiumOptimal: number
-  phMin: number
-  phMax: number
-  phOptimal: number
-  organicMatterMin?: number | null
-  organicMatterMax?: number | null
+  cropName: string
+  cropNameTh: string
+  category: string
+  imageUrl: string | null
+  score: number
+  level: RecommendationLevel
+  difficulty: Difficulty
+  reasons: string[]
+  penalties: Penalty[]
 }
+
+export interface IneligibleCrop {
+  cropId: string
+  cropName: string
+  cropNameTh: string
+  reasons: string[]
+}
+
+export interface RecommendationResult {
+  levels: SoilLevels
+  warnings: string[]
+  ranked: RankedCrop[]
+  ineligible: IneligibleCrop[]
+}
+
+// ------------------------------------------------------------------
+// Soil plans
+// ------------------------------------------------------------------
+
+export interface NutrientAmounts {
+  n: number
+  p2o5: number
+  k2o: number
+}
+
+export interface FertilizerProduct {
+  formula: "18-46-0" | "46-0-0" | "0-0-60"
+  kgPerRai: number
+  kgTotal: number
+}
+
+export type SoilPlanStep =
+  | {
+      type: "ph_correction"
+      daysAfterPlanting: number
+      titleTh: string
+      material: string | null
+      kgPerRai: number | null
+      kgTotal: number | null
+      noteTh: string
+    }
+  | {
+      type: "organic_matter"
+      daysAfterPlanting: number
+      titleTh: string
+      kgPerRai: number
+      kgTotal: number
+      noteTh: string
+    }
+  | {
+      type: "fertilizer"
+      daysAfterPlanting: number
+      titleTh: string
+      nutrientsPerRai: NutrientAmounts
+      products: FertilizerProduct[]
+      noteTh: string | null
+    }
+  | {
+      type: "retest"
+      daysAfterPlanting: null
+      titleTh: string
+      noteTh: string
+    }
+
+export interface SoilPlan {
+  cropId: string
+  areaRai: number
+  mode: PlanMode
+  difficulty: Difficulty
+  steps: SoilPlanStep[]
+  nutrientTotalsPerRai: NutrientAmounts
+  warnings: string[]
+  sources: string[]
+}
+
+export interface SoilPlanRequest {
+  cropId: string
+  areaRai: number
+  mode: PlanMode
+  site: SiteInput
+  soil: SoilInput
+}
+
+// ------------------------------------------------------------------
+// Crops
+// ------------------------------------------------------------------
 
 export interface Crop {
   id: string
@@ -45,176 +168,83 @@ export interface Crop {
   category: string
   description?: string | null
   imageUrl?: string | null
-  requirement?: CropRequirement | null
 }
 
-export interface RecommendedCrop {
-  plantId: string
-  cropId?: string
-  name: string
-  nameTh: string
-  scientificName?: string | null
-  category?: string
-  description: string
-  imageUrl?: string | null
-  score: number
-  level?: RecommendationLevel
-  breakdown: {
-    nitrogen: number
-    phosphorus: number
-    potassium: number
-    ph: number
-  }
-  reasons: string[]
-  improvements: string[]
-  cropRequirement?: CropRequirement | null
+export interface CropRequirement {
+  allowedLandTypes: LandType[]
+  minWaterSupply: WaterSupply
+  preferredTextures: SoilTexture[]
+  phMin: number
+  phMax: number
+  phOptimal: number
+  minOrganicMatterLevel: NutrientLevel
+  minNitrogenLevel: NutrientLevel
+  minPhosphorusLevel: NutrientLevel
+  minPotassiumLevel: NutrientLevel
+  source: string
 }
 
-export interface AnalysisResult {
-  analysisId?: string
-  createdAt?: string
-  soil: SoilInput
-  rankings: RecommendedCrop[]
-  soilImprovement?: SoilImprovementPlan
-}
-
-export type NutrientDeficiencyStatus =
-  | "severe_deficiency"
-  | "mild_deficiency"
-  | "optimal"
-  | "mild_excess"
-  | "severe_excess"
-
-export interface NutrientDiagnostic {
-  nutrient: "nitrogen" | "phosphorus" | "potassium" | "ph"
-  name: string
-  nameTh: string
-  currentValue: number
-  optimalRange: { min: number; max: number; optimal: number }
-  status: NutrientDeficiencyStatus
-  statusLabelTh: string
-  symptomsTh: string
-  impactTh: string
-}
-
-export interface FertilizerScheduleItem {
-  stage: string
-  formula: string
-  rateKgPerRai: number
-  rateKgPerHectare: number
-  timing: string
-  instructions: string
-}
-
-export interface OrganicAlternative {
-  nameTh: string
-  type: "manure" | "green_manure" | "rock_mineral" | "bio_fertilizer"
-  targetNutrient: string
-  rateTh: string
-  benefitTh: string
-}
-
-export interface PhCorrectionPlan {
-  currentPh: number
-  category: "strongly_acidic" | "moderately_acidic" | "optimal" | "alkaline"
-  categoryTh: string
-  recommendedMaterial: string
-  dosageKgPerRai: number
-  dosageKgPerHectare: number
-  applicationMethodTh: string
-}
-
-export interface SoilImprovementPlan {
-  cropId?: string
-  cropName?: string
-  cropNameTh?: string
-  soilHealthScore: number
-  overallConditionTh: string
-  diagnostics: NutrientDiagnostic[]
-  fertilizerRecommendations: FertilizerScheduleItem[]
-  organicAlternatives: OrganicAlternative[]
-  phCorrection: PhCorrectionPlan
-  generalTipsTh: string[]
-}
-
-export interface OcrExtractedSoilData {
-  fileId?: string
-  fileName?: string
-  fileType?: string
-  nitrogen: number | null
-  phosphorus: number | null
-  potassium: number | null
-  ph: number | null
-  organicMatter?: number | null
-  moisture?: number | null
-  confidence: {
-    nitrogen: number
-    phosphorus: number
-    potassium: number
-    ph: number
-    overall: number
-  }
-  rawText?: string
-}
-
-/** Recommendation row as returned by GET /api/analyses/:id (mapped to RecommendedCrop on the client). */
-export interface AnalysisRecommendationDto {
+export interface FertilizerStage {
   id: string
-  cropId: string
-  cropName: string
-  cropNameTh: string
-  scientificName?: string | null
-  category: string
-  description?: string | null
-  imageUrl?: string | null
-  score: number
-  level?: RecommendationLevel
-  breakdown: RecommendedCrop["breakdown"]
-  reasons: string[]
-  improvementSuggestions: string[]
-  cropRequirement?: CropRequirement | null
+  order: number
+  nameTh: string
+  nameEn: string
+  daysAfterPlanting: number
+  nitrogenShare: number
+  phosphorusShare: number
+  potassiumShare: number
+  source: string
 }
 
-/** Top-crop preview stored on a history entry (cloud rows from the API, local rows cached by recommendPlants). */
-export interface HistoryRecommendationPreview {
-  crop?: { name?: string; nameTh?: string; category?: string }
-  suitabilityScore?: number
-  recommendationLevel?: string
+/** GET /api/crops/:id */
+export interface CropDetail extends Crop {
+  requirement: CropRequirement | null
+  fertilizerStages: FertilizerStage[]
 }
 
-/** Saved analysis summary from GET /api/analyses/history. */
-export interface AnalysisHistoryItem {
-  id: string
-  createdAt: string
-  nitrogen: number
-  phosphorus: number
-  potassium: number
-  ph: number
-  recommendations?: HistoryRecommendationPreview[]
-}
-
-/** Analysis cached in localStorage so guest results are never lost. */
-export interface LocalHistoryEntry {
-  id: string
-  createdAt: string
-  soil: SoilInput
-  recommendations?: HistoryRecommendationPreview[]
-  fullResult?: AnalysisResult
-}
+// ------------------------------------------------------------------
+// Users
+// ------------------------------------------------------------------
 
 export interface UserProfile {
   id: string
   email: string
   name: string | null
   image: string | null
-  createdAt?: string
+  createdAt: string
   updatedAt: string
-  _count?: { analyses: number; favorites: number }
+  _count: { plots: number }
 }
 
-// ==========================================
-// Phase 4 - Advanced Features Types
-// ==========================================
+// ------------------------------------------------------------------
+// Client-side quick check (stateless, kept in the browser)
+// ------------------------------------------------------------------
+
+/** What the user entered on the soil form. Province and notes are client-only context. */
+export interface SoilCheckInput {
+  site: SiteInput
+  soil: SoilInput
+  province: string
+  notes?: string
+}
+
+/** A quick check and its result, passed from the form to /results. */
+export interface SoilCheck extends SoilCheckInput {
+  id: string
+  createdAt: string
+  result: RecommendationResult
+}
+
+/** A quick check saved in localStorage. Only the input is kept; the result is recalculated on open. */
+export interface LocalHistoryEntry extends SoilCheckInput {
+  id: string
+  createdAt: string
+  topCrops: Pick<RankedCrop, "cropId" | "cropName" | "cropNameTh" | "category" | "score" | "level">[]
+}
+
+// ------------------------------------------------------------------
+// Environment
+// ------------------------------------------------------------------
 
 export type ThaiRegion =
   | "Northern"
@@ -256,105 +286,3 @@ export interface WeatherData {
   forecast: WeatherForecastDay[]
   agriculturalAlerts: AgriculturalAlert[]
 }
-
-export interface RegionalCropSuitability {
-  cropId: string
-  cropName: string
-  cropNameTh: string
-  province: string
-  region: ThaiRegion
-  regionTh: string
-  season: SeasonType
-  seasonLabelTh: string
-  waterAvailability: "high" | "moderate" | "low"
-  climateScore: number
-  regionalFit: "highly_suitable" | "moderately_suitable" | "poorly_suitable"
-  regionalFitLabelTh: string
-  regionalReasonTh: string
-  bestPlantingMonthsTh: string
-}
-
-export interface CostBreakdownItem {
-  category: "fertilizer" | "land_prep_labor" | "seeds" | "protection" | "harvest_transport"
-  categoryTh: string
-  amountThb: number
-  percentage: number
-}
-
-export interface CropEconomics {
-  cropId: string
-  cropName: string
-  cropNameTh: string
-  expectedYieldPerRai: number // kg / rai
-  expectedYieldPerHectare: number // kg / ha
-  marketPricePerKg: number // THB / kg
-  grossRevenuePerRai: number // in THB
-  fertilizerCostPerRai: number // in THB
-  otherProductionCostPerRai: number // in THB
-  totalCostPerRai: number // in THB
-  netProfitPerRai: number // in THB
-  roiPercentage: number // %
-  breakEvenPricePerKg: number // in THB
-  landAreaRai: number
-  totalProjectedRevenue: number
-  totalProjectedCost: number
-  totalProjectedProfit: number
-  costBreakdown: CostBreakdownItem[]
-}
-
-export interface AnalyticsDashboardData {
-  kpis: {
-    totalAnalyses: number
-    totalCrops: number
-    totalUsers: number
-  }
-  totalAnalyses: number
-  totalCrops: number
-  totalUsers: number
-  averageSoilMetrics: {
-    nitrogen: number
-    phosphorus: number
-    potassium: number
-    ph: number
-  }
-  soilHealthDistribution: {
-    optimalPercentage: number
-    deficientPercentage: number
-    excessPercentage: number
-  }
-  phCategoryDistribution: Array<{
-    category: string
-    labelTh: string
-    count: number
-    percentage: number
-  }>
-  cropPopularityRanking: Array<{
-    cropId: string
-    name: string
-    nameTh: string
-    category: string
-    count: number
-    percentage: number
-    averageScore: number
-  }>
-  regionalActivity: Array<{
-    region: string
-    regionTh: string
-    count: number
-  }>
-  recentActivityTimeline: Array<{
-    id: string
-    createdAt: string
-    cropNameTh: string
-    suitabilityScore: number
-    recommendationLevel: string
-  }>
-  recentAnalysesTimeline?: Array<{
-    id: string
-    createdAt: string
-    cropNameTh: string
-    suitabilityScore: number
-    recommendationLevel: string
-  }>
-}
-

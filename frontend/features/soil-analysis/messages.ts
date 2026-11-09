@@ -3,148 +3,188 @@ import { defineMessages } from "@/lib/i18n/config"
 export const soilAnalysisMessages = defineMessages({
   th: {
     page: {
-      eyebrow: "วิเคราะห์ธาตุอาหารในดิน",
+      eyebrow: "ตรวจดินแบบรวดเร็ว",
       title: "วิเคราะห์ดินและค้นหาพืชที่เหมาะสม",
       description:
-        "กรอกผลตรวจดินจากห้องปฏิบัติการหรือชุดตรวจดินพกพา เพื่อจัดอันดับพืชที่ให้ผลผลิตดีที่สุดในสภาพดินของคุณ",
+        "บอกสภาพแปลงและกรอกผลตรวจดินจากห้องปฏิบัติการหรือชุดตรวจดินภาคสนาม ระบบจะจัดอันดับพืชที่ปลูกได้ดีและบอกว่าต้องปรับดินมากน้อยแค่ไหน",
     },
-    form: {
-      title: "ค่าวิเคราะห์ทางเคมีของดิน",
-      description: "ธาตุอาหารหลัก N-P-K หน่วย mg/kg และค่าความเป็นกรด-ด่าง · ppm คือหน่วยเดียวกับ mg/kg กรอกตัวเลขตามใบผลตรวจได้เลย",
-      placeholder: (min: number, max: number) => `ค่าปกติ ${min}–${max}`,
-      hints: {
-        nitrogen: "บำรุงลำต้นและใบให้เขียว",
-        phosphorus: "เร่งการพัฒนาราก ดอก และเมล็ด",
-        potassium: "สะสมแป้งและน้ำตาล เพิ่มความต้านทานโรค",
-        ph: "5.5 – 7.0 เหมาะกับพืชส่วนใหญ่",
+    site: {
+      title: "สภาพแปลง",
+      description: "ลักษณะที่เปลี่ยนแปลงได้ยาก ใช้คัดพืชที่ปลูกไม่ได้ออกก่อน",
+      landType: "ลักษณะพื้นที่",
+      landTypeHint: {
+        lowland: "น้ำขังได้ในหน้าฝน เช่น ที่นา",
+        upland: "น้ำไม่ขัง ระบายน้ำได้ดี",
+      },
+      waterSupply: "แหล่งน้ำ",
+      waterSupplyHint: {
+        rainfed: "มีน้ำเฉพาะหน้าฝน",
+        seasonal_irrigation: "มีน้ำชลประทานบางช่วง",
+        year_round: "มีบ่อ/คลอง/ชลประทานตลอดปี",
+      },
+      soilTexture: "เนื้อดิน",
+      soilTextureHint: {
+        clay: "ปั้นเป็นเส้นยาวได้ เหนียวติดมือ",
+        loam: "ปั้นเป็นก้อนได้แต่แตกง่าย",
+        sandy: "สากมือ ปั้นไม่เป็นก้อน",
+      },
+    },
+    soil: {
+      title: "ผลตรวจดิน",
+      description: "เลือกตามแหล่งที่มาของผลตรวจ",
+      modes: {
+        lab: { label: "ผลจากห้องปฏิบัติการ", desc: "ใบรายงานเป็นตัวเลข เช่น จากกรมพัฒนาที่ดิน" },
+        test_kit: { label: "ชุดตรวจดินภาคสนาม", desc: "อ่านผลเป็นระดับ ต่ำ / ปานกลาง / สูง" },
       },
       onReport: "บนใบผลตรวจ:",
-      reportLabels: {
-        nitrogen: "“ไนโตรเจน (N)” หรือ “Available N”",
-        phosphorus: "“ฟอสฟอรัสที่เป็นประโยชน์” หรือ “Available P (Bray II)”",
-        potassium: "“โพแทสเซียมที่แลกเปลี่ยนได้” หรือ “Exchangeable K”",
-        ph: "“ความเป็นกรด-ด่าง” หรือ “pH (1:1)”",
+      ph: { hint: "พืชส่วนใหญ่ชอบ pH 5.5 – 7.0", report: "“ความเป็นกรด-ด่าง” หรือ “pH (1:1)”" },
+      organicMatter: {
+        hint: "ใช้ประเมินไนโตรเจนด้วย เพราะใบผลตรวจส่วนใหญ่ไม่รายงาน N",
+        report: "“อินทรียวัตถุ” หรือ “OM (%)”",
       },
-      status: {
-        low: "ต่ำ",
-        ok: "เหมาะสม",
-        high: "สูง",
-        empty: "ยังไม่ระบุ",
+      phosphorus: {
+        hint: "ช่วยการเจริญของราก ดอก และเมล็ด",
+        report: "“ฟอสฟอรัสที่เป็นประโยชน์” หรือ “Available P (Bray II)”",
       },
-      phStatus: {
-        strongAcid: "กรดจัด",
-        acid: "กรดอ่อน",
-        ideal: "เหมาะสม",
-        alkaline: "ด่าง",
+      potassium: {
+        hint: "ช่วยสะสมแป้งและน้ำตาล เพิ่มความต้านทานโรค",
+        report: "“โพแทสเซียมที่แลกเปลี่ยนได้” หรือ “Exchangeable K”",
       },
-      phScale: { acid: "กรด", neutral: "กลาง", alkaline: "ด่าง" },
-      contextTitle: "พื้นที่และฤดูกาล",
-      contextDescription: "ใช้ปรับเกณฑ์ตามสภาพอากาศและแหล่งน้ำ",
-      notes: "ชื่อแปลงหรือบันทึกเพิ่มเติม",
+      kitHint: "เลือกระดับตามสีที่อ่านได้จากชุดตรวจ",
+      kitNitrogen: "ชุดตรวจไม่วัดอินทรียวัตถุ ระบบจะประเมินจากระดับไนโตรเจน",
+      placeholder: "เช่น",
+    },
+    context: {
+      title: "ข้อมูลเพิ่มเติม",
+      notes: "ชื่อแปลงหรือบันทึก",
       optional: "ไม่บังคับ",
       notesPlaceholder: "เช่น แปลงข้าวทุ่งกุลา แปลงที่ 2",
+    },
+    form: {
       submit: "วิเคราะห์และแนะนำพืช",
       submitting: "กำลังประมวลผล...",
       errors: {
-        incomplete: "กรุณากรอกตัวเลขค่าธาตุอาหารให้ครบถ้วน",
-        phRange: "ค่า pH ต้องอยู่ระหว่าง 0 ถึง 14",
+        incomplete: "กรุณากรอกข้อมูลให้ครบทุกช่อง",
+        phRange: "ค่า pH ต้องอยู่ระหว่าง 3 ถึง 10",
+        organicMatterRange: "อินทรียวัตถุต้องอยู่ระหว่าง 0 ถึง 100 %",
+        negative: "ค่าฟอสฟอรัสและโพแทสเซียมต้องไม่ติดลบ",
         failed: "เกิดข้อผิดพลาดในการคำนวณ กรุณาลองใหม่อีกครั้ง",
       },
       presetApplied: (name: string) => `ใช้ค่าตัวอย่าง: ${name}`,
       presetNote: (name: string) => `ตัวอย่างข้อมูล: ${name}`,
     },
     guide: {
-      title: "ค่าที่เหมาะสมโดยทั่วไป",
-      description: "ช่วงอ้างอิงสำหรับพืชไร่และไม้ผลส่วนใหญ่ ระบบจะเทียบกับความต้องการเฉพาะของพืชแต่ละชนิดอีกครั้ง",
-      tipTitle: "เคล็ดลับ",
-      tip: "เก็บตัวอย่างดินลึก 0–15 ซม. จากหลายจุดในแปลงแล้วผสมรวมกัน จะได้ค่าที่สะท้อนทั้งแปลงมากขึ้น",
+      title: "ยังไม่มีผลตรวจดิน?",
+      items: [
+        "ส่งตัวอย่างดินตรวจได้ที่สถานีพัฒนาที่ดินประจำจังหวัด หรือใช้ชุดตรวจดินภาคสนาม",
+        "เก็บดินลึก 0–15 ซม. จากหลายจุดในแปลงแล้วผสมรวมกัน จะได้ค่าที่สะท้อนทั้งแปลง",
+        "ทดสอบเนื้อดินด้วยมือ: ปั้นดินชื้นเป็นเส้น ถ้าเป็นเส้นยาวคือดินเหนียว ถ้าไม่เป็นก้อนคือดินทราย",
+      ],
+      estimatedTitle: "ค่าที่ระบบประเมินให้",
+      estimated: "ผลแล็บ: ประเมินไนโตรเจนจากอินทรียวัตถุ · ชุดตรวจ: ประเมินอินทรียวัตถุจากไนโตรเจน",
     },
     presets: {
       title: "ลองใช้ค่าตัวอย่าง",
       description: "คลิกเพื่อเติมค่าอัตโนมัติ",
       items: {
-        paddy: { name: "ดินนาลุ่มน้ำขัง", desc: "เหมาะกับข้าว · pH 6.0" },
-        loam: { name: "ดินร่วนระบายน้ำดี", desc: "ข้าวโพด/ผัก · pH 6.5" },
-        sandy: { name: "ดินร่วนปนทราย", desc: "มันสำปะหลัง/สับปะรด · pH 5.5" },
-        acidic: { name: "ดินเปรี้ยวจัด", desc: "N ต่ำ · pH 4.2" },
+        paddy: { name: "นาลุ่มดินเหนียว", desc: "ผลแล็บ · pH 5.8" },
+        upland: { name: "ไร่ดอนดินร่วน", desc: "ผลแล็บ · pH 6.4" },
+        sandy: { name: "ดินทรายอาศัยฝน", desc: "ชุดตรวจ · pH 5.2" },
+        acidic: { name: "ดินเปรี้ยวจัด", desc: "ผลแล็บ · pH 4.3" },
       } as Record<string, { name: string; desc: string }>,
     },
   },
   en: {
     page: {
-      eyebrow: "Soil nutrient analysis",
+      eyebrow: "Quick soil check",
       title: "Analyze soil & find the right crops",
       description:
-        "Enter results from a lab or a portable soil test kit to rank the crops that will perform best in your soil.",
+        "Describe your plot and enter a lab report or a field test kit result. We rank the crops that grow well and show how much soil work each one needs.",
     },
-    form: {
-      title: "Soil chemistry values",
-      description: "Primary nutrients N-P-K in mg/kg, plus soil pH · ppm is the same as mg/kg, so type the number as printed on your report",
-      placeholder: (min: number, max: number) => `Typical ${min}–${max}`,
-      hints: {
-        nitrogen: "Drives stem and leaf growth",
-        phosphorus: "Supports roots, flowers and seeds",
-        potassium: "Builds starch and sugar, improves disease resistance",
-        ph: "5.5 – 7.0 suits most crops",
+    site: {
+      title: "Plot conditions",
+      description: "Things that are hard to change. Crops that cannot grow here are filtered out first.",
+      landType: "Land type",
+      landTypeHint: {
+        lowland: "Floods in the rainy season, e.g. paddy",
+        upland: "No standing water, drains well",
+      },
+      waterSupply: "Water supply",
+      waterSupplyHint: {
+        rainfed: "Water only in the rainy season",
+        seasonal_irrigation: "Irrigation for part of the year",
+        year_round: "Pond, canal or irrigation all year",
+      },
+      soilTexture: "Soil texture",
+      soilTextureHint: {
+        clay: "Rolls into a long ribbon, sticky",
+        loam: "Forms a ball that crumbles",
+        sandy: "Gritty, will not form a ball",
+      },
+    },
+    soil: {
+      title: "Soil test result",
+      description: "Choose where your result comes from",
+      modes: {
+        lab: { label: "Lab report", desc: "Numbers on a report, e.g. from the Land Development Dept." },
+        test_kit: { label: "Field test kit", desc: "Read as low / medium / high" },
       },
       onReport: "On your report:",
-      reportLabels: {
-        nitrogen: "“Available N” or “Nitrogen (N)”",
-        phosphorus: "“Available P (Bray II)” or “ฟอสฟอรัสที่เป็นประโยชน์”",
-        potassium: "“Exchangeable K” or “โพแทสเซียมที่แลกเปลี่ยนได้”",
-        ph: "“pH (1:1)” or “ความเป็นกรด-ด่าง”",
+      ph: { hint: "Most crops like pH 5.5 – 7.0", report: "“pH (1:1)” or “ความเป็นกรด-ด่าง”" },
+      organicMatter: {
+        hint: "Also used to estimate nitrogen, which most lab reports leave out",
+        report: "“Organic matter” or “OM (%)”",
       },
-      status: {
-        low: "Low",
-        ok: "Healthy",
-        high: "High",
-        empty: "Not set",
+      phosphorus: {
+        hint: "Supports roots, flowers and seeds",
+        report: "“Available P (Bray II)” or “ฟอสฟอรัสที่เป็นประโยชน์”",
       },
-      phStatus: {
-        strongAcid: "Strongly acidic",
-        acid: "Slightly acidic",
-        ideal: "Ideal",
-        alkaline: "Alkaline",
+      potassium: {
+        hint: "Builds starch and sugar, improves disease resistance",
+        report: "“Exchangeable K” or “โพแทสเซียมที่แลกเปลี่ยนได้”",
       },
-      phScale: { acid: "Acidic", neutral: "Neutral", alkaline: "Alkaline" },
-      contextTitle: "Location & season",
-      contextDescription: "Adjusts scoring for climate and water availability",
+      kitHint: "Pick the level that matches the kit's color chart",
+      kitNitrogen: "Kits don't measure organic matter, so it is estimated from nitrogen",
+      placeholder: "e.g.",
+    },
+    context: {
+      title: "More details",
       notes: "Plot name or notes",
       optional: "Optional",
       notesPlaceholder: "e.g. Rice plot 2, Thung Kula",
+    },
+    form: {
       submit: "Analyze & recommend crops",
       submitting: "Analyzing...",
       errors: {
-        incomplete: "Please enter all nutrient values",
-        phRange: "pH must be between 0 and 14",
+        incomplete: "Please fill in every field",
+        phRange: "pH must be between 3 and 10",
+        organicMatterRange: "Organic matter must be between 0 and 100 %",
+        negative: "Phosphorus and potassium can't be negative",
         failed: "Calculation failed. Please try again.",
       },
       presetApplied: (name: string) => `Sample applied: ${name}`,
       presetNote: (name: string) => `Sample data: ${name}`,
     },
     guide: {
-      title: "Typical healthy ranges",
-      description: "Reference ranges for most field crops and fruit trees. Each crop is then scored against its own requirements.",
-      tipTitle: "Tip",
-      tip: "Sample soil at 0–15 cm from several spots in the plot and mix them together for a more representative result.",
+      title: "No soil test yet?",
+      items: [
+        "Send a sample to your provincial Land Development station, or use a field test kit",
+        "Take soil 0–15 cm deep from several spots and mix it, so the result reflects the whole plot",
+        "Hand texture test: roll moist soil into a ribbon. A long ribbon means clay; if it won't hold together, it's sandy",
+      ],
+      estimatedTitle: "Estimated values",
+      estimated: "Lab report: nitrogen is estimated from organic matter · Test kit: organic matter is estimated from nitrogen",
     },
     presets: {
       title: "Try a sample soil",
       description: "Click to fill the form",
       items: {
-        paddy: { name: "Flooded paddy soil", desc: "Suits rice · pH 6.0" },
-        loam: { name: "Well-drained loam", desc: "Corn/vegetables · pH 6.5" },
-        sandy: { name: "Sandy loam", desc: "Cassava/pineapple · pH 5.5" },
-        acidic: { name: "Strongly acidic soil", desc: "Low N · pH 4.2" },
+        paddy: { name: "Lowland clay paddy", desc: "Lab · pH 5.8" },
+        upland: { name: "Upland loam field", desc: "Lab · pH 6.4" },
+        sandy: { name: "Rainfed sandy soil", desc: "Test kit · pH 5.2" },
+        acidic: { name: "Strongly acidic soil", desc: "Lab · pH 4.3" },
       } as Record<string, { name: string; desc: string }>,
     },
   },
 })
-
-/** General healthy reference ranges (mg/kg, pH) used for live input feedback. */
-export const HEALTHY_RANGES = {
-  nitrogen: { min: 60, max: 150, scaleMax: 250 },
-  phosphorus: { min: 25, max: 70, scaleMax: 120 },
-  potassium: { min: 50, max: 120, scaleMax: 200 },
-  ph: { min: 5.5, max: 7.0, scaleMin: 3.5, scaleMax: 9.5 },
-} as const

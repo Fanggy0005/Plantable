@@ -8,7 +8,6 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardList,
-  Coins,
   Compass,
   FileDown,
   FlaskConical,
@@ -371,9 +370,8 @@ function Features() {
             </div>
           </FeatureCard>
 
-          <FeatureCard icon={Coins} title={t.features.economics.title} body={t.features.economics.body} className="md:col-span-2" />
-          <FeatureCard icon={FileDown} title={t.features.history.title} body={t.features.history.body} className="md:col-span-2" />
-          <FeatureCard icon={BookOpen} title={t.features.database.title} body={t.features.database.body} className="md:col-span-2" />
+          <FeatureCard icon={FileDown} title={t.features.history.title} body={t.features.history.body} className="md:col-span-3" />
+          <FeatureCard icon={BookOpen} title={t.features.database.title} body={t.features.database.body} className="md:col-span-3" />
         </Stagger>
       </div>
     </section>

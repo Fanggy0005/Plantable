@@ -3,25 +3,24 @@
 import { useState } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "motion/react"
-import { ArrowUpRight, CheckCircle2, ChevronDown, Crosshair, Lightbulb, Medal } from "lucide-react"
+import { ArrowUpRight, CheckCircle2, ChevronDown, Crosshair, ListChecks, Medal } from "lucide-react"
 import { SuitabilityGauge } from "@/components/charts/SuitabilityGauge"
 import { CropIcon } from "@/components/shared/CropIcon"
 import { EASE_OUT } from "@/components/motion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { FavoriteButton } from "@/features/crop/components/FavoriteButton"
 import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
-import { scoreTone, TONE_COLOR } from "@/lib/score"
+import { DIFFICULTY_VARIANT } from "@/lib/score"
 import { cn } from "@/lib/utils"
-import type { RecommendedCrop } from "@/types"
+import type { RankedCrop } from "@/types"
 import { recommendationMessages } from "../messages"
 
 interface CropRecommendationCardProps {
-  crop: RecommendedCrop
+  crop: RankedCrop
   rank: number
   isSelected?: boolean
-  onSelectForComparison?: (crop: RecommendedCrop) => void
+  onSelect?: (crop: RankedCrop) => void
 }
 
 const MEDAL: Record<number, string> = {
@@ -44,50 +43,14 @@ function RankMedal({ rank }: { rank: number }) {
   )
 }
 
-function BreakdownBar({ label, value, delay }: { label: string; value: number; delay: number }) {
-  const v = Math.max(0, Math.min(100, value))
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
-        <span className="truncate text-muted-foreground">{label}</span>
-        <span className="font-semibold text-foreground tabular-nums">{v}%</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: TONE_COLOR[scoreTone(v)] }}
-          initial={{ width: 0 }}
-          whileInView={{ width: `${v}%` }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: EASE_OUT, delay }}
-        />
-      </div>
-    </div>
-  )
-}
-
-export function CropRecommendationCard({
-  crop,
-  rank,
-  isSelected = false,
-  onSelectForComparison,
-}: CropRecommendationCardProps) {
-  const t = useT(recommendationMessages).card
+export function CropRecommendationCard({ crop, rank, isSelected = false, onSelect }: CropRecommendationCardProps) {
+  const t = useT(recommendationMessages)
   const common = useT(commonMessages)
   const { pick, locale } = useFormat()
   const [expanded, setExpanded] = useState(rank === 1)
 
-  const cropId = crop.plantId || crop.cropId || ""
-  const primaryName = pick(crop.nameTh, crop.name)
-  const secondaryName = locale === "th" ? crop.name : crop.nameTh
-  const detailCount = crop.reasons.length + (crop.improvements?.length ?? 0)
-
-  const nutrients = [
-    { key: "nitrogen", short: "N" },
-    { key: "phosphorus", short: "P" },
-    { key: "potassium", short: "K" },
-    { key: "ph", short: "pH" },
-  ] as const
+  const primaryName = pick(crop.cropNameTh, crop.cropName)
+  const secondaryName = locale === "th" ? crop.cropName : crop.cropNameTh
 
   return (
     <article
@@ -96,84 +59,87 @@ export function CropRecommendationCard({
         isSelected && "border-primary/60 ring-2 ring-primary/15 hover:border-primary/60"
       )}
     >
-      <div
-        className={cn("p-4 sm:p-5", onSelectForComparison && "cursor-pointer")}
-        onClick={() => onSelectForComparison?.(crop)}
-      >
+      <div className={cn("p-4 sm:p-5", onSelect && "cursor-pointer")} onClick={() => onSelect?.(crop)}>
         <div className="flex items-start gap-3 sm:gap-4">
           <RankMedal rank={rank} />
-          <CropIcon name={crop.name} category={crop.category} className="hidden sm:inline-flex" />
+          <CropIcon name={crop.cropName} category={crop.category} className="hidden sm:inline-flex" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="text-lg font-bold tracking-tight text-foreground">{primaryName}</h3>
               {secondaryName && secondaryName !== primaryName && (
                 <span className="text-sm text-muted-foreground">{secondaryName}</span>
               )}
-              <FavoriteButton cropId={cropId} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <Badge variant={DIFFICULTY_VARIANT[crop.difficulty]}>{common.difficulties[crop.difficulty]}</Badge>
               {crop.category && (
                 <Badge variant="secondary">{common.categories[crop.category] ?? crop.category}</Badge>
-              )}
-              {crop.scientificName && (
-                <span className="text-xs text-muted-foreground italic">{crop.scientificName}</span>
               )}
             </div>
           </div>
           <SuitabilityGauge score={crop.score} level={crop.level} size={72} strokeWidth={7} className="shrink-0" />
         </div>
 
-        {crop.description && (
-          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground sm:pl-27">{crop.description}</p>
-        )}
-
-        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 sm:pl-27">
-          {nutrients.map((n, i) => (
-            <BreakdownBar
-              key={n.key}
-              label={`${n.short} ${common.nutrients[n.key]}`}
-              value={crop.breakdown[n.key]}
-              delay={0.1 + i * 0.06}
-            />
-          ))}
+        <div className="mt-4 sm:pl-27">
+          {crop.penalties.length === 0 ? (
+            <p className="flex items-center gap-1.5 text-sm text-success">
+              <CheckCircle2 className="size-4" />
+              {t.card.noPenalties}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-0.5 text-xs font-semibold text-muted-foreground">{t.card.penaltiesTitle}</span>
+              {crop.penalties.map((p) => (
+                <span
+                  key={p.factor}
+                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs text-foreground"
+                >
+                  {t.penalties[p.factor] ?? p.factor}
+                  <span className="font-bold text-destructive tabular-nums">{t.card.points(p.points)}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/30 px-3 py-2 sm:px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-          className="h-10 text-primary"
-        >
-          <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="inline-flex">
-            <ChevronDown />
-          </motion.span>
-          {expanded ? t.hideDetails : t.showDetails(detailCount)}
-        </Button>
+        {crop.reasons.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+            className="h-10 text-primary"
+          >
+            <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="inline-flex">
+              <ChevronDown />
+            </motion.span>
+            {expanded ? t.card.hideDetails : t.card.showDetails(crop.reasons.length)}
+          </Button>
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            render={<Link href={`/crops/${cropId}`} />}
+            render={<Link href={`/crops/${crop.cropId}`} />}
             nativeButton={false}
             className="h-10 text-muted-foreground"
           >
-            {t.cropInfo}
+            {t.card.cropInfo}
             <ArrowUpRight />
           </Button>
-          {onSelectForComparison && (
+          {onSelect && (
             <Button
               variant={isSelected ? "default" : "outline"}
               size="sm"
               aria-pressed={isSelected}
-              onClick={() => onSelectForComparison(crop)}
+              onClick={() => onSelect(crop)}
               className="h-10"
             >
               <Crosshair />
-              <span className="hidden sm:inline">{isSelected ? t.viewing : t.compare}</span>
+              <span className="hidden sm:inline">{isSelected ? t.card.viewing : t.card.select}</span>
             </Button>
           )}
         </div>
@@ -189,38 +155,19 @@ export function CropRecommendationCard({
             transition={{ duration: 0.35, ease: EASE_OUT }}
             className="overflow-hidden"
           >
-            <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
-              <div className="rounded-xl bg-success-soft/60 p-3.5">
-                <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-success">
-                  <CheckCircle2 className="size-4 shrink-0" />
-                  {t.reasonsTitle}
-                </h4>
-                <ul className="space-y-1.5 text-sm leading-relaxed text-foreground/80">
-                  {crop.reasons.map((r, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="mt-2 size-1 shrink-0 rounded-full bg-success" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {crop.improvements && crop.improvements.length > 0 && (
-                <div className="rounded-xl bg-warning-soft/70 p-3.5">
-                  <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-warning">
-                    <Lightbulb className="size-4 shrink-0" />
-                    {t.improvementsTitle}
-                  </h4>
-                  <ul className="space-y-1.5 text-sm leading-relaxed text-foreground/80">
-                    {crop.improvements.map((imp, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="mt-2 size-1 shrink-0 rounded-full bg-warning" />
-                        {imp}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            <div className="border-t border-border p-4 sm:p-5">
+              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <ListChecks className="size-4 shrink-0 text-primary" />
+                {t.card.reasonsTitle}
+              </h4>
+              <ul className="space-y-1.5 text-sm leading-relaxed text-foreground/80">
+                {crop.reasons.map((r, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="mt-2 size-1 shrink-0 rounded-full bg-primary" />
+                    {r}
+                  </li>
+                ))}
+              </ul>
             </div>
           </motion.div>
         )}
