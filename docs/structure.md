@@ -1,664 +1,167 @@
 # Project Structure
 
-## Overview
+Two applications in one repository, both on Bun:
 
-This project follows a modular full-stack architecture.
+* `frontend/`: Next.js (App Router)
+* `backend/`: ElysiaJS + Prisma
 
-The project is divided into two applications:
-
-* Frontend (Next.js)
-* Backend (ElysiaJS)
-
-Each module is responsible for a single feature.
-
-Business logic must remain independent from the UI.
+Do not create top-level folders outside this structure without updating this document.
 
 ---
 
-# Root Structure
+# Root
 
 ```text
-soil-recommendation/
-
-├── frontend/
+Plantable/
 ├── backend/
+├── frontend/
 ├── docs/
-├── .gitignore
-├── README.md
-└── docker-compose.yml
+│   ├── context.md      product, domain, engine
+│   ├── database.md     schema
+│   ├── api-spec.md     endpoints
+│   ├── rules.md        coding rules
+│   ├── structure.md    this file
+│   └── roadmap.md      phases and status
+├── package.json
+└── README.md
 ```
 
 ---
 
-# Documentation
+# Backend
 
 ```text
-docs/
-
-├── roadmap.md
-├── context.md
-├── database.md
-├── api-spec.md
-├── rules.md
-└── project-structure.md
+backend/
+├── prisma/
+│   ├── schema.prisma        the only source of the DB schema
+│   ├── seed.ts              loads master data
+│   ├── seed-data/           crops.ts, sample-agronomy.ts (SAMPLE values until real data arrives)
+│   └── migrations/
+├── src/
+│   ├── index.ts             app setup (`app` export), CORS, route registration
+│   ├── config/              db client
+│   ├── constants/           engine.ts (scoring tuning), amendments.ts (liming materials, organic rates)
+│   ├── lib/                 auth.ts (Better Auth), session.ts (requireUserId), http-error.ts, error-handler.ts
+│   ├── routes/              path + validation + auth, then call a service
+│   ├── services/            business flow (plot, analysis, recommendation, soil-plan, crop, user, weather)
+│   │   └── engine/          pure functions: levels, site-check, score, recommend, fertilizer, soil-plan
+│   ├── repositories/        Prisma queries only
+│   ├── validators/          Elysia `t` schemas (soil-input.schema.ts, request.schema.ts)
+│   ├── types/               weather types
+│   ├── utils/               response envelope
+│   └── generated/           Prisma client output (generated, do not edit)
+└── tests/
+    ├── engine/              pure unit tests (no DB)
+    ├── api/                 integration tests (test DB)
+    └── helpers.ts           test client, sign-up, test-DB guard
 ```
 
-All AI agents must read these documents before generating code.
+## Request flow
+
+```text
+Route → Service → Repository → Prisma → PostgreSQL
+          ↓
+       engine/ (pure)
+
+Errors: thrown HttpError → lib/error-handler.ts → envelope
+```
+
+Dependencies only point downward. `engine/` imports nothing from routes, services, repositories or Prisma. It defines its own string-union types, which match the Prisma enums value for value.
+
+## Modules
+
+| Module          | Route file                  | Service                       | Repository               |
+| --------------- | --------------------------- | ----------------------------- | ------------------------ |
+| Crops           | `crop.routes.ts`            | `crop.service.ts`             | `crop.repository.ts`     |
+| Plots           | `plot.routes.ts`            | `plot.service.ts`             | `plot.repository.ts`     |
+| Analyses        | `plot.routes.ts` (nested), `analysis.routes.ts` | `analysis.service.ts`, `analysis-mapper.ts` | `analysis.repository.ts` |
+| Recommendations + soil plans (stateless) | `recommendation.routes.ts` | `recommendation.service.ts`, `soil-plan.service.ts` | `crop.repository.ts`, `master-data.repository.ts` |
+| Users           | `user.routes.ts`            | `user.service.ts`             | `user.repository.ts`     |
+| Environment     | `environment.routes.ts`     | `weather.service.ts`          | —                        |
 
 ---
 
-# Frontend Structure
+# Frontend
 
 ```text
 frontend/
-
 ├── app/
+│   ├── layout.tsx
+│   ├── globals.css
+│   └── (web)/               pages and layouts only, no business logic
 ├── components/
-├── features/
-├── hooks/
-├── services/
+│   ├── ui/                  shadcn/ui primitives
+│   ├── layout/              navbar parts, language switcher
+│   ├── shared/              PageHeader, States (loading/empty/error), StatCard, CropIcon
+│   ├── charts/              NPK radar, pH gauge, score gauge
+│   ├── Navbar.tsx
+│   └── Footer.tsx
+├── features/                one folder per feature: components/, hooks/, messages.ts
 ├── lib/
-├── types/
-├── utils/
-├── styles/
-├── public/
-└── middleware.ts
+│   ├── api.ts               API client (all fetch calls live here)
+│   ├── auth-client.ts       Better Auth client
+│   ├── i18n/                TH/EN setup
+│   ├── export-pdf.ts
+│   └── utils.ts
+├── types/                   API request/response types
+└── public/
 ```
 
----
+## Pages (target)
 
-# app/
+| Route                         | Purpose                                         |
+| ----------------------------- | ----------------------------------------------- |
+| `/`                           | Landing                                         |
+| `/login`, `/register`         | Auth (email + LINE)                             |
+| `/check`                      | Guest quick check: site + soil → ranking (not saved) |
+| `/plots`                      | My plots with latest soil status                |
+| `/plots/new`                  | Create plot                                     |
+| `/plots/[id]`                 | Plot detail: soil history, before/after, target crop |
+| `/plots/[id]/analyses/new`    | Enter a soil test (lab or kit mode)             |
+| `/analyses/[id]`              | Ranking + ineligible list + what-if simulator   |
+| `/analyses/[id]/plan`         | Soil plan for the chosen crop (`?crop=`), share/PDF |
+| `/crops`, `/crops/[id]`       | Crop catalog with requirements and sources      |
+| `/guide`                      | No soil test yet: texture hand test, where to test soil |
+| `/profile`                    | Account                                         |
 
-Contains Next.js App Router.
+Current pages map to the target as: `analyze` → `check` and `plots/[id]/analyses/new`, `results` → `analyses/[id]`, `history` → `plots`.
 
-Example
-
-```text
-app/
-
-├── page.tsx
-├── layout.tsx
-
-├── login/
-
-├── dashboard/
-
-├── analyses/
-
-├── crops/
-
-├── profile/
-```
-
-Only pages and layouts belong here.
-
-Do not place business logic here.
-
----
-
-# components/
-
-Reusable UI components.
-
-```text
-components/
-
-Button/
-
-Card/
-
-Navbar/
-
-Footer/
-
-Charts/
-
-Loading/
-
-EmptyState/
-
-ErrorState/
-```
-
-Components must be reusable.
-
----
-
-# features/
-
-Each feature owns its own UI, hooks and logic.
+## Features (target)
 
 ```text
 features/
-
-soil-analysis/
-
-crop/
-
-recommendation/
-
-auth/
-
-profile/
-
-favorite/
-
-dashboard/
+├── auth/
+├── marketing/
+├── plot/
+├── soil-analysis/       input form (lab/kit modes), input help
+├── recommendation/      ranking, ineligible list, simulator
+├── soil-plan/           plan steps, quantities, share (renamed from soil-improvement)
+├── crop/
+├── guide/
+├── environment/         weather widget (secondary)
+└── profile/
 ```
 
-Example
+Rules:
+
+* A feature does not import another feature's internals. Shared pieces move to `components/shared/` or `types/`.
+* `messages.ts` per feature holds all TH/EN strings for it.
+
+## Frontend flow
 
 ```text
-features/
-
-soil-analysis/
-
-components/
-
-hooks/
-
-services/
-
-types/
-
-utils/
-```
-
-Feature modules should not depend directly on other features.
-
----
-
-# hooks/
-
-Global reusable hooks.
-
-Example
-
-```text
-useDebounce
-
-usePagination
-
-useDarkMode
-
-useCurrentUser
+Page → Feature component → hook → lib/api.ts → REST API
 ```
 
 ---
 
-# services/
-
-Frontend API clients.
-
-Example
-
-```text
-analysis.service.ts
-
-crop.service.ts
-
-auth.service.ts
-```
-
-No UI code belongs here.
-
----
-
-# lib/
-
-Third-party configuration.
-
-Example
-
-```text
-axios.ts
-
-auth.ts
-
-query-client.ts
-
-storage.ts
-```
-
----
-
-# utils/
-
-Pure helper functions.
-
-Example
-
-```text
-formatDate()
-
-calculatePercentage()
-
-convertUnit()
-```
-
-Utilities must not call APIs.
-
----
-
-# types/
-
-Global shared types.
-
-Example
-
-```text
-Crop
-
-User
-
-Recommendation
-
-SoilAnalysis
-```
-
----
-
-# Backend Structure
-
-```text
-backend/
-
-src/
-
-├── index.ts
-├── routes/
-├── controllers/
-├── services/
-├── repositories/
-├── validators/
-├── middleware/
-├── models/
-├── utils/
-├── constants/
-├── types/
-└── config/
-```
-
----
-
-# routes/
-
-Register API endpoints.
-
-Responsibilities
-
-* Routing
-* Validation
-* Middleware
-
-Routes must never contain business logic.
-
----
-
-# controllers/
-
-Receive requests.
-
-Call services.
-
-Return responses.
-
-Controllers should remain thin.
-
----
-
-# services/
-
-Contains business logic.
-
-Examples
-
-```text
-RecommendationService
-
-AnalysisService
-
-CropService
-
-OCRService
-```
-
-Suitability score calculation belongs here.
-
----
-
-# repositories/
-
-Database access layer.
-
-Responsibilities
-
-* Prisma queries
-* CRUD operations
-
-Repositories must not contain business logic.
-
----
-
-# validators/
-
-Contains Zod schemas.
-
-Example
-
-```text
-createAnalysis.schema.ts
-
-updateProfile.schema.ts
-```
-
-Every request must be validated.
-
----
-
-# middleware/
-
-Authentication
-
-Logging
-
-Error handler
-
-Rate limiter
-
-Request logger
-
----
-
-# models/
-
-Shared backend models.
-
-Use only when necessary.
-
-Database schema remains inside Prisma.
-
----
-
-# config/
-
-Application configuration.
-
-Example
-
-```text
-database.ts
-
-storage.ts
-
-env.ts
-
-auth.ts
-```
-
----
-
-# constants/
-
-Application constants.
-
-Example
-
-```text
-RecommendationLevel
-
-ErrorMessage
-
-UploadLimit
-
-SupportedFileTypes
-```
-
----
-
-# Prisma
-
-```text
-backend/
-
-prisma/
-
-schema.prisma
-
-seed.ts
-
-migrations/
-```
-
-Only Prisma manages database schema.
-
----
-
-# Storage
-
-Uploaded files
-
-Cloudflare R2
-
-Never store uploaded files locally.
-
----
-
-# Feature Flow
-
-```text
-User
-
-↓
-
-Page
-
-↓
-
-Feature
-
-↓
-
-Service
-
-↓
-
-REST API
-
-↓
-
-Controller
-
-↓
-
-Service
-
-↓
-
-Repository
-
-↓
-
-Prisma
-
-↓
-
-PostgreSQL
-```
-
-Every request follows this architecture.
-
----
-
-# Import Rules
-
-Allowed
-
-```text
-Page
-
-↓
-
-Feature
-
-↓
-
-Service
-
-↓
-
-API
-```
-
-Forbidden
-
-```text
-Page
-
-↓
-
-Repository
-```
-
----
-
-# Dependency Rules
-
-Frontend
-
-Page
-
-↓
-
-Feature
-
-↓
-
-Service
-
-↓
-
-API
-
-Backend
-
-Route
-
-↓
-
-Controller
-
-↓
-
-Service
-
-↓
-
-Repository
-
-↓
-
-Database
-
-Dependencies must never point upward.
-
----
-
-# Naming Convention
-
-Components
-
-```text
-CropCard.tsx
-
-SoilInputForm.tsx
-
-AnalysisHistory.tsx
-```
-
-Services
-
-```text
-analysis.service.ts
-
-crop.service.ts
-```
-
-Repositories
-
-```text
-crop.repository.ts
-```
-
-Controllers
-
-```text
-analysis.controller.ts
-```
-
-Validators
-
-```text
-create-analysis.schema.ts
-```
-
----
-
-# Testing Structure
-
-```text
-tests/
-
-unit/
-
-integration/
-
-e2e/
-```
-
-Business logic should always be unit-testable.
-
----
-
-# Future Modules
-
-Future features should follow the same architecture.
-
-Examples
-
-```text
-weather/
-
-fertilizer/
-
-ocr/
-
-ai/
-
-notification/
-
-analytics/
-```
-
-Every new feature must remain modular and independent.
-
----
-
-# AI Agent Instructions
-
-Before generating code:
-
-1. Read `context.md`
-2. Read `rules.md`
-3. Read `database.md`
-4. Read `api-spec.md`
-5. Follow `roadmap.md`
-
-AI agents must:
-
-* Respect the project architecture.
-* Never create files outside the defined structure.
-* Never duplicate business logic.
-* Keep modules independent.
-* Prefer reusable components and services.
-* Ask for clarification instead of making assumptions when requirements are unclear.
+# Naming Examples
+
+| Kind        | Example                                     |
+| ----------- | ------------------------------------------- |
+| Component   | `PlotCard.tsx`, `SoilPlanSteps.tsx`         |
+| Hook        | `usePlot.ts`, `useSimulator.ts`             |
+| Service     | `soil-plan.service.ts`                      |
+| Repository  | `plot.repository.ts`                        |
+| Validator   | `soil-input.schema.ts`, `request.schema.ts` |
+| Engine file | `engine/site-check.ts`, `engine/score.ts`, `engine/fertilizer.ts` |

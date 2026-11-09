@@ -1,22 +1,37 @@
 # Development Rules
 
-These rules apply to the entire project.
+These rules apply to the whole project. Every contributor, human or AI agent, follows them.
 
-Every AI agent contributing to this project must follow these rules.
+---
+
+# Before Writing Code
+
+Read these, in order:
+
+1. `context.md`: what the app is for, the domain, and the engine
+2. `database.md`: the schema
+3. `api-spec.md`: the endpoints
+4. `structure.md`: where files go
+5. `roadmap.md`: what is being built now
+
+Then:
+
+* Never invent database fields or API endpoints. If one is needed, update the docs first, with the owner's approval.
+* Never invent agronomic numbers (thresholds, rates, crop ranges). They come from a cited source into master data.
+* Never change the architecture without explicit instruction.
+* If something is missing or unclear, ask. Do not assume.
+* Every feature must serve one of the two questions in `context.md`. If it does not, do not build it.
 
 ---
 
 # General Principles
 
-* Always prioritize readability over clever code.
-* Keep files small and maintainable.
-* Follow SOLID principles where appropriate.
-* Prefer composition over inheritance.
-* Avoid unnecessary abstraction.
-* Write code that is easy for humans to understand.
-* Keep business logic separated from presentation logic.
-* Avoid duplicated code (DRY).
-* Use meaningful variable and function names.
+* Readability over cleverness
+* Small, focused files and functions
+* No duplicated logic (DRY), but no abstraction before a second use
+* Business logic separated from presentation
+* Meaningful names
+* Build for 100–1,000 users. Do not add infrastructure for scale that does not exist (queues, caches, microservices, object storage)
 
 ---
 
@@ -24,390 +39,169 @@ Every AI agent contributing to this project must follow these rules.
 
 Always
 
-* Enable strict typing.
-* Avoid using `any`.
-* Prefer interfaces or types for API responses.
-* Use enums only when necessary.
-* Use async/await instead of Promise chains.
+* Strict mode
+* Explicit types for API requests and responses
+* async/await
 
 Never
 
-* Disable TypeScript checks.
-* Ignore type errors.
-* Use implicit any.
+* `any` (use `unknown` and narrow it)
+* `@ts-ignore` or disabled checks
+* Ignored type errors
+
+Prisma enums and string-literal unions are both fine. Prefer unions in frontend code.
 
 ---
 
-# Folder Structure
+# Naming
 
-Frontend
-
-```text
-app/
-components/
-features/
-hooks/
-lib/
-services/
-types/
-utils/
-```
-
-Backend
-
-```text
-src/
-
-controllers/
-services/
-repositories/
-routes/
-middlewares/
-validators/
-types/
-utils/
-```
-
-Do not place business logic inside route files.
-
----
-
-# Naming Convention
-
-Files
-
-```text
-soil-analysis.service.ts
-
-crop.controller.ts
-
-recommendation.repository.ts
-```
-
-Components
-
-```text
-SoilInputForm.tsx
-
-CropCard.tsx
-
-SuitabilityScore.tsx
-```
-
-Hooks
-
-```text
-useCrop.ts
-
-useAnalysis.ts
-```
-
-Functions
-
-```typescript
-calculateSuitabilityScore()
-
-generateRecommendation()
-
-getCropRequirements()
-```
-
-Variables
-
-camelCase
-
-Types
-
-PascalCase
-
-Constants
-
-UPPER_SNAKE_CASE
+| Kind        | Convention          | Example                          |
+| ----------- | ------------------- | -------------------------------- |
+| Files       | kebab-case + role   | `soil-plan.service.ts`, `plot.repository.ts`, `soil-input.schema.ts` |
+| Components  | PascalCase          | `SoilInputForm.tsx`, `CropRankCard.tsx` |
+| Hooks       | camelCase, `use`    | `usePlots.ts`                    |
+| Functions   | camelCase verb      | `calculateSuitabilityScore()`    |
+| Variables   | camelCase           |                                  |
+| Types       | PascalCase          | `SoilInput`, `SoilPlanStep`      |
+| Constants   | UPPER_SNAKE_CASE    | `PH_ABOVE_PENALTY_PER_HALF_UNIT` |
 
 ---
 
 # Backend Rules
 
-Routes only
+| Layer       | Does                                            | Never                     |
+| ----------- | ----------------------------------------------- | ------------------------- |
+| Route       | Path, validation schema, `requireUserId()`, calls a service, wraps `successResponse()` | Business logic, try/catch |
+| Service     | Business flow: loads master data, calls the engine, enforces ownership, throws `HttpError` | Raw HTTP concerns |
+| Engine      | Pure calculation functions (`services/engine/`) | I/O of any kind (DB, network, AI, clock) |
+| Repository  | Prisma queries only                             | Business rules            |
 
-* Validate request
-* Call service
-* Return response
+There is no controller layer. Routes stay thin enough not to need one.
 
-Services
+## Errors
 
-* Business logic
-* Recommendation calculation
-* Validation
+* Services throw `HttpError(status, message)` (`lib/http-error.ts`) for anything the client should see: 404, 422 and so on
+* `lib/error-handler.ts` turns every error into the response envelope. Validation errors become 422 with readable details, and anything unexpected is logged and returned as a generic 500
+* Routes do not catch errors
 
-Repositories
+## Ownership
 
-* Database access only
-
-Repositories must never contain business logic.
-
----
-
-# Recommendation Engine
-
-The recommendation engine is deterministic.
-
-Never use AI to calculate crop recommendations.
-
-Recommendation logic must be reproducible.
-
-Every recommendation must include
-
-* Suitability score
-* Recommendation level
-* Reasons
-* Improvement suggestions
+Every Auth endpoint that takes a plot or analysis ID must check that it belongs to the session user. The check lives in the service (`getOwned`), and a failure returns `404`.
 
 ---
 
-# API Rules
+# Recommendation Engine Rules
 
-Use REST.
+* Deterministic and reproducible
+* Pure functions, all inputs passed in (soil, site, master data)
+* Never uses AI
+* Every ranked crop includes: score, level, difficulty, reasons, penalties
+* Every soil-plan step includes a quantity per rai and a total for the plot, plus its timing
+* Agronomic data (thresholds, rates, crop ranges) comes from master data in the DB
+* Scoring weights are tuning parameters in `backend/src/constants/engine.ts`
 
-Plural resources.
+## Starting scoring parameters
 
-Examples
+These are product tuning values, not agronomic facts. Adjust them with tests.
 
-```text
-GET /crops
+| Constant                              | Starting value |
+| ------------------------------------- | -------------- |
+| `TEXTURE_NOT_PREFERRED_PENALTY`       | 15             |
+| `PH_BELOW_PENALTY_PER_STEP` (per started 0.5 pH) | 8 (cap 40) |
+| `PH_ABOVE_PENALTY_PER_STEP` (per started 0.5 pH) | 12 (cap 50) |
+| `ORGANIC_MATTER_BELOW_MIN_PENALTY`    | 10             |
+| `NUTRIENT_BELOW_MIN_PENALTY` (N/P/K)  | 5 each         |
+| `HARD_PH_RAISE_GAP`                   | 1.0 pH unit    |
+| `NOT_FEASIBLE_PH_RAISE_GAP`           | 2.0 pH units   |
+| `NOT_FEASIBLE_PH_LOWER_GAP`           | 1.0 pH unit    |
+| `NOT_FEASIBLE_MAX_SCORE`              | 39             |
 
-GET /analyses
+Difficulty, checked in this order:
 
-POST /analyses
-
-GET /recommendations
-```
-
-Response
-
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Success"
-}
-```
-
-Errors
-
-```json
-{
-  "success": false,
-  "message": "Validation Error",
-  "errors": []
-}
-```
-
-Use proper HTTP status codes.
+* `not_feasible`: pH more than `NOT_FEASIBLE_PH_RAISE_GAP` below min, or more than `NOT_FEASIBLE_PH_LOWER_GAP` above max
+* `hard`: pH above max, or more than `HARD_PH_RAISE_GAP` below min
+* `moderate`: pH below min, or organic matter below min
+* `easy`: everything else
 
 ---
 
 # Validation
 
-Validate every request.
+* Validate every request with Elysia `t` (TypeBox) schemas in `validators/`
+* Reject unknown fields: objects use `additionalProperties: false`, and the root app runs with `normalize: false` so extra fields return 422 instead of being silently dropped
+* Enforce the per-mode required fields of `SoilInput`
+* Readable messages, in Thai first, for fields the user can fix
+* Never trust client input, including IDs. Check ownership
 
-Use Zod.
+---
 
-Never trust client input.
+# API Rules
 
-Return readable validation messages.
+See `api-spec.md`. In short: REST, plural nouns, a consistent envelope, proper status codes, and no internal errors exposed.
 
 ---
 
 # Database Rules
 
-Use Prisma ORM.
-
-Never write raw SQL unless absolutely necessary.
-
-Always use UUID as primary keys.
-
-Use UTC timestamps.
-
-Master data
-
-* Crop
-* CropRequirement
-
-must not be modified by normal users.
+* Prisma only. No raw SQL unless absolutely necessary
+* UUID primary keys, UTC timestamps
+* Schema changes go through `prisma migrate`, one focused migration per change
+* Master data changes go through the seed files with a `source`, never through the app
 
 ---
 
 # Frontend Rules
 
-Keep components small.
-
-Prefer reusable UI components.
-
-Use shadcn/ui whenever possible.
-
-Keep pages lightweight.
-
-Avoid unnecessary state.
-
-Use React hooks appropriately.
-
-Do not place API logic inside UI components.
-
----
-
-# Styling
-
-Use Tailwind CSS.
-
-Use utility classes.
-
-Avoid inline styles.
-
-Maintain consistent spacing.
-
-Support responsive layouts.
-
-Support dark mode.
+* **Mobile-first.** Design at 360px width first. Large tap targets, one main action per screen
+* **Thai first.** Every user-facing string lives in a `messages.ts` (TH + EN). No hard-coded UI text in components
+* Use **rai** for area and **kg** for quantities. Show both per-rai and whole-plot amounts
+* Explain every input: what it is, where to find it on a lab report or kit, and what to do if you don't have it
+* No business logic in components. The UI displays what the API returns. The simulator calls `POST /api/recommendations` (debounced). It does not re-implement the engine
+* API calls go through the API client in `lib/api.ts`, never `fetch` inside components
+* shadcn/ui components and Tailwind utility classes; no inline styles
+* Every data view handles loading, empty and error states
+* Support dark mode
 
 ---
 
 # Error Handling
 
-Every API call must
-
-* Handle loading state
-* Handle empty state
-* Handle error state
-
-Never expose internal server errors to users.
-
-Log unexpected errors on the backend.
+* Never show internal errors to users. Use a generic message with a retry option
+* Log unexpected errors on the backend with context (route, user id)
+* `errors` in responses contains validation details only
 
 ---
 
-# Authentication
+# Authentication & Security
 
-Protect private routes.
-
-Never trust frontend authentication.
-
-Validate authentication on every protected request.
-
-Store passwords securely.
-
-Never expose secrets.
-
----
-
-# Security
-
-Always validate inputs.
-
-Sanitize uploaded files.
-
-Prevent SQL Injection.
-
-Prevent XSS.
-
-Prevent CSRF when applicable.
-
-Never expose environment variables.
-
----
-
-# File Upload
-
-Allowed
-
-* PDF
-* PNG
-* JPG
-* JPEG
-
-Validate
-
-* File size
-* MIME type
-
-Store files in Cloudflare R2.
-
-Do not store uploaded files locally.
-
----
-
-# Performance
-
-Use pagination.
-
-Avoid N+1 queries.
-
-Use database indexes.
-
-Cache static master data when appropriate.
-
-Optimize expensive calculations.
+* Better Auth for sessions: email/password and LINE Login
+* Validate the session on every Auth request on the backend. Never trust the frontend
+* Rate-limit auth endpoints
+* CORS and Better Auth trusted origins allow only `FRONTEND_URL` (env, default `http://localhost:3000`)
+* Secrets only in env vars. Never commit `.env*` files, never send them to the client
+* Escape user content (plot names, notes) when rendering. No `dangerouslySetInnerHTML`
 
 ---
 
 # Testing
 
-Write tests for
+Use `bun test`, in `backend/tests/`.
 
-* Recommendation engine
-* Score calculation
-* Validation
-* API endpoints
+* `tests/engine/`: pure unit tests, no database, test fixtures only
+* `tests/api/`: integration tests through `app.handle()`, against the separate `plantable_test` database (`backend/.env.test`). `tests/helpers.ts` refuses to run against any other database
+* Set up the test DB once: `DATABASE_URL=<test url> bunx prisma migrate deploy && bun prisma/seed.ts`
 
-Critical business logic should always be testable.
+Must have:
+
+* Engine unit tests: level normalization, site check, each penalty, difficulty, ranking order, soil-plan quantities and fertilizer conversion. No database needed
+* Validation tests for `SoilInput` per mode
+* Ownership tests: user A cannot read or modify user B's plot or analysis
+* Endpoint integration tests for plots and analyses
 
 ---
 
 # Git Rules
 
-Commit messages
+Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:` (optional scope, e.g. `feat(engine):`).
 
-```text
-feat:
-
-fix:
-
-refactor:
-
-docs:
-
-style:
-
-test:
-
-chore:
-```
-
-Keep commits focused.
-
-Avoid large unrelated commits.
-
----
-
-# AI Agent Rules
-
-Before generating code
-
-* Read context.md
-* Read database.md
-* Read api-spec.md
-* Follow roadmap.md
-
-Never invent database fields.
-
-Never invent API endpoints.
-
-Never change project architecture without explicit instruction.
-
-If information is missing,
-
-ask for clarification instead of making assumptions.
-
-Maintain consistency across the entire codebase.
-
-All generated code must follow the project architecture and these development rules.
+Keep commits focused. Docs changes that alter the schema or API are committed before or with the code that implements them.
