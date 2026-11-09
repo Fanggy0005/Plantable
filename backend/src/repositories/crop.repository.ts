@@ -1,6 +1,5 @@
 import { prisma } from "../config/db"
 import type { Prisma } from "../generated/prisma"
-import type { CropWithRequirement } from "../services/recommendation-engine.service"
 
 export interface CropFilterParams {
   search?: string
@@ -8,39 +7,52 @@ export interface CropFilterParams {
 }
 
 export class CropRepository {
-  async findAll(params?: CropFilterParams): Promise<CropWithRequirement[]> {
+  async findAll(params: CropFilterParams = {}) {
     const where: Prisma.CropWhereInput = {}
 
-    if (params?.search) {
+    if (params.search) {
       where.OR = [
         { name: { contains: params.search, mode: "insensitive" } },
         { nameTh: { contains: params.search, mode: "insensitive" } },
         { scientificName: { contains: params.search, mode: "insensitive" } },
       ]
     }
-
-    if (params?.category) {
+    if (params.category) {
       where.category = { equals: params.category, mode: "insensitive" }
     }
 
-    return prisma.crop.findMany({
-      where,
-      include: {
-        requirement: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    })
+    return prisma.crop.findMany({ where, orderBy: { name: "asc" } })
   }
 
-  async findById(id: string): Promise<CropWithRequirement | null> {
+  /** All crops with their requirement, for ranking. */
+  async findAllWithRequirement() {
+    return prisma.crop.findMany({ include: { requirement: true }, orderBy: { name: "asc" } })
+  }
+
+  async findDetail(id: string) {
     return prisma.crop.findUnique({
       where: { id },
       include: {
         requirement: true,
+        fertilizerStages: { orderBy: { order: "asc" } },
       },
     })
+  }
+
+  /** A crop with everything needed to build its soil plan. */
+  async findForSoilPlan(id: string) {
+    return prisma.crop.findUnique({
+      where: { id },
+      include: {
+        requirement: true,
+        fertilizerRates: true,
+        fertilizerStages: { orderBy: { order: "asc" } },
+      },
+    })
+  }
+
+  async exists(id: string): Promise<boolean> {
+    return (await prisma.crop.count({ where: { id } })) > 0
   }
 }
 

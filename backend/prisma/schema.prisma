@@ -1,7 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Schema v2: see docs/database.md
 
 generator client {
   provider = "prisma-client-js"
@@ -12,31 +9,73 @@ datasource db {
   provider = "postgresql"
 }
 
+// ==========================================
+// Enums
+// ==========================================
+
+enum LandType {
+  lowland
+  upland
+}
+
+enum WaterSupply {
+  rainfed
+  seasonal_irrigation
+  year_round
+}
+
+enum SoilTexture {
+  clay
+  loam
+  sandy
+}
+
+enum InputMode {
+  lab
+  test_kit
+}
+
+enum NutrientLevel {
+  low
+  medium
+  high
+}
+
+enum Nutrient {
+  organic_matter
+  nitrogen
+  phosphorus
+  potassium
+}
+
+// ==========================================
+// Better Auth
+// ==========================================
+
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
+  id            String   @id @default(uuid())
+  email         String   @unique
   name          String?
   image         String?
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  analyses      SoilAnalysis[]
-  favorites     FavoriteCrop[]
+  sessions Session[]
+  accounts Account[]
+  plots    Plot[]
 }
 
 model Session {
-  id          String      @id @default(uuid())
-  expiresAt   DateTime
-  token       String      @unique
-  ipAddress   String?
-  userAgent   String?
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Account {
@@ -63,116 +102,144 @@ model Verification {
   updatedAt  DateTime @updatedAt
 }
 
+// ==========================================
+// User data
+// ==========================================
+
+model Plot {
+  id           String      @id @default(uuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  areaRai      Float
+  province     String
+  landType     LandType
+  waterSupply  WaterSupply
+  soilTexture  SoilTexture
+  targetCropId String?
+  targetCrop   Crop?       @relation(fields: [targetCropId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  analyses SoilAnalysis[]
+
+  @@index([userId])
+}
+
+model SoilAnalysis {
+  id        String    @id @default(uuid())
+  plotId    String
+  plot      Plot      @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  inputMode InputMode
+  sampledAt DateTime
+  ph        Float
+
+  // lab mode
+  organicMatterPct Float?
+  phosphorusMgKg   Float?
+  potassiumMgKg    Float?
+
+  // test_kit mode
+  nitrogenLevel   NutrientLevel?
+  phosphorusLevel NutrientLevel?
+  potassiumLevel  NutrientLevel?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([plotId])
+  @@index([sampledAt])
+}
+
+// ==========================================
+// Master data (seeded, read-only for users)
+// ==========================================
+
 model Crop {
-  id             String           @id @default(uuid())
-  name           String           @unique
+  id             String   @id @default(uuid())
+  name           String   @unique
   nameTh         String
   scientificName String?
-  category       String           // e.g., Grain, Vegetable, Fruit, Cash Crop
+  category       String
   description    String?
   imageUrl       String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  requirement    CropRequirement?
-  recommendations Recommendation[]
-  favoritedBy    FavoriteCrop[]
+  requirement      CropRequirement?
+  fertilizerRates  FertilizerRate[]
+  fertilizerStages FertilizerStage[]
+  targetedByPlots  Plot[]
 
   @@index([name])
 }
 
 model CropRequirement {
-  id                String   @id @default(uuid())
-  cropId            String   @unique
-  crop              Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
-  nitrogenMin       Float
-  nitrogenMax       Float
-  nitrogenOptimal   Float
-  phosphorusMin     Float
-  phosphorusMax     Float
-  phosphorusOptimal Float
-  potassiumMin      Float
-  potassiumMax      Float
-  potassiumOptimal  Float
-  phMin             Float
-  phMax             Float
-  phOptimal         Float
-  organicMatterMin  Float?
-  organicMatterMax  Float?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String        @id @default(uuid())
+  cropId                String        @unique
+  crop                  Crop          @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  allowedLandTypes      LandType[]
+  minWaterSupply        WaterSupply
+  preferredTextures     SoilTexture[]
+  phMin                 Float
+  phMax                 Float
+  phOptimal             Float
+  minOrganicMatterLevel NutrientLevel
+  minNitrogenLevel      NutrientLevel
+  minPhosphorusLevel    NutrientLevel
+  minPotassiumLevel     NutrientLevel
+  source                String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
-model SoilAnalysis {
-  id            String           @id @default(uuid())
-  userId        String?
-  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  nitrogen      Float
-  phosphorus    Float
-  potassium     Float
-  ph            Float
-  organicMatter Float?
-  moisture      Float?
-  province      String?
-  region        String?
-  season        String?
-  notes         String?
-  createdAt     DateTime         @default(now())
+model NutrientLevelThreshold {
+  id       String        @id @default(uuid())
+  nutrient Nutrient
+  level    NutrientLevel
+  min      Float?
+  max      Float?
+  unit     String
+  source   String
 
-  recommendations Recommendation[]
-  uploadedReport  UploadedReport?
-
-  @@index([userId])
-  @@index([createdAt])
+  @@unique([nutrient, level])
 }
 
-model Recommendation {
-  id                     String       @id @default(uuid())
-  soilAnalysisId         String
-  soilAnalysis           SoilAnalysis @relation(fields: [soilAnalysisId], references: [id], onDelete: Cascade)
-  cropId                 String
-  crop                   Crop         @relation(fields: [cropId], references: [id], onDelete: Cascade)
-  suitabilityScore       Float
-  recommendationLevel    String       // Excellent, Good, Fair, Poor, Not Recommended
-  nitrogenScore          Float
-  phosphorusScore        Float
-  potassiumScore         Float
-  phScore                Float
-  reasons                Json         // string[]
-  improvementSuggestions Json         // string[]
-  createdAt              DateTime     @default(now())
-
-  @@index([soilAnalysisId])
-  @@index([cropId])
-  @@index([suitabilityScore])
-}
-
-model FavoriteCrop {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model FertilizerRate {
+  id        String        @id @default(uuid())
   cropId    String
-  crop      Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  crop      Crop          @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  nutrient  Nutrient
+  soilLevel NutrientLevel
+  kgPerRai  Float
+  source    String
 
-  @@unique([userId, cropId])
+  @@unique([cropId, nutrient, soilLevel])
 }
 
-model UploadedReport {
-  id             String        @id @default(uuid())
-  soilAnalysisId String?       @unique
-  soilAnalysis   SoilAnalysis? @relation(fields: [soilAnalysisId], references: [id], onDelete: SetNull)
-  fileName       String?
-  fileUrl        String
-  fileType       String        // pdf, image
-  fileSize       Int?
-  ocrStatus      String        @default("pending") // pending, processing, completed, failed
-  extractedData  Json?
-  rawText        String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+model FertilizerStage {
+  id                String @id @default(uuid())
+  cropId            String
+  crop              Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  order             Int
+  nameTh            String
+  nameEn            String
+  daysAfterPlanting Int
+  nitrogenShare     Float
+  phosphorusShare   Float
+  potassiumShare    Float
+  source            String
 
-  @@index([soilAnalysisId])
-  @@index([ocrStatus])
+  @@unique([cropId, order])
 }
 
+model LimeRate {
+  id                     String      @id @default(uuid())
+  soilTexture            SoilTexture
+  phFrom                 Float
+  phTo                   Float
+  kgCaco3PerRaiPerPhUnit Float
+  source                 String
+
+  @@unique([soilTexture, phFrom])
+}

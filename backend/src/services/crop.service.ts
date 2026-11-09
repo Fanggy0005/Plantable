@@ -1,15 +1,14 @@
+import { notFound } from "../lib/http-error"
 import { cropRepository, type CropFilterParams } from "../repositories/crop.repository"
 
 export class CropService {
-  async getAllCrops(params?: CropFilterParams) {
+  async list(params: CropFilterParams) {
     return cropRepository.findAll(params)
   }
 
-  async getCropById(id: string) {
-    const crop = await cropRepository.findById(id)
-    if (!crop) {
-      throw new Error("Crop not found")
-    }
+  async get(id: string) {
+    const crop = await cropRepository.findDetail(id)
+    if (!crop) throw notFound("Crop")
     return crop
   }
 }

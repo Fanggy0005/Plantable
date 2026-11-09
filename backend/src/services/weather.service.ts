@@ -1,12 +1,10 @@
 import type {
   WeatherData,
-  RegionalCropSuitability,
   ThaiRegion,
   SeasonType,
   AgriculturalAlert,
   WeatherForecastDay,
 } from "../types"
-import type { Crop } from "../generated/prisma"
 
 export interface ProvinceLocation {
   name: string
@@ -316,112 +314,6 @@ export class WeatherService {
     }
 
     return alerts
-  }
-
-  /**
-   * Evaluate regional and seasonal compatibility for a crop
-   */
-  evaluateRegionalSuitability(
-    crop: { id: string; name: string; nameTh: string; category: string },
-    provinceQuery?: string | null,
-    seasonQuery?: string | null
-  ): RegionalCropSuitability {
-    const loc = this.resolveLocation(provinceQuery)
-    const { season, labelTh: seasonLabelTh } = getSeasonFromType(seasonQuery)
-
-    let climateScore = 85
-    let regionalFit: "highly_suitable" | "moderately_suitable" | "poorly_suitable" = "highly_suitable"
-    let regionalFitLabelTh = "เหมาะสมสูงมากกับสภาพภูมิภาค"
-    let regionalReasonTh = `สภาพอากาศและระดับความสูงของ${loc.regionTh} (${loc.nameTh}) สอดคล้องกับพืชชนิดนี้`
-    let bestMonthsTh = "พฤษภาคม - กรกฎาคม"
-    let waterAvailability: "high" | "moderate" | "low" = "moderate"
-
-    const name = crop.name.toLowerCase()
-
-    // 1. Rice (ข้าว)
-    if (name.includes("rice")) {
-      waterAvailability = season === "rainy" ? "high" : "moderate"
-      if (season === "rainy") {
-        climateScore = 95
-        regionalFit = "highly_suitable"
-        regionalFitLabelTh = "เหมาะสมสูงสุดในฤดูทำนาปี"
-        regionalReasonTh = `ช่วงฤดูฝนใน${loc.regionTh} มีปริมาณน้ำเพียงพอต่อการเจริญเติบโตและการแตกกอของข้าว`
-        bestMonthsTh = "พฤษภาคม - สิงหาคม (นาปี), มกราคม - มีนาคม (นาปรังในเขตชลประทาน)"
-      } else {
-        climateScore = 70
-        regionalFit = "moderately_suitable"
-        regionalFitLabelTh = "เหมาะสมปานกลาง (ต้องมีแหล่งน้ำชลประทาน)"
-        regionalReasonTh = "การปลูกข้าวนอกฤดูฝนจำเป็นต้องอาศัยคลองส่งน้ำชลประทานหรือบ่อบาดาลประจำแปลง"
-      }
-    }
-    // 2. Corn (ข้าวโพด)
-    else if (name.includes("corn") || name.includes("maize")) {
-      waterAvailability = "moderate"
-      if (loc.region === "Northern" || loc.region === "Northeastern" || loc.region === "Central") {
-        climateScore = 92
-        regionalFit = "highly_suitable"
-        bestMonthsTh = "ต้นฤดูฝน (พ.ค. - มิ.ย.) หรือ ข้าวโพดหลังนา (พ.ย. - ธ.ค.)"
-        regionalReasonTh = `${loc.regionTh} เป็นแหล่งเพาะปลูกข้าวโพดหลัก มีแสงแดดเพียงพอและระบายน้ำได้ดี`
-      } else {
-        climateScore = 75
-        regionalFit = "moderately_suitable"
-      }
-    }
-    // 3. Cassava & Sugarcane (มันสำปะหลัง / อ้อย)
-    else if (name.includes("cassava") || name.includes("sugarcane")) {
-      waterAvailability = "low"
-      if (loc.region === "Northeastern" || loc.region === "Western" || loc.region === "Central") {
-        climateScore = 95
-        regionalFit = "highly_suitable"
-        bestMonthsTh = "มีนาคม - พฤษภาคม (ต้นฝน) หรือ ตุลาคม - พฤศจิกายน (ปลายฝน)"
-        regionalReasonTh = `ดินร่วนปนทรายและภูมิอากาศของ${loc.nameTh} ทนแล้งได้ดีเยี่ยม เหมาะสมกับการสะสมแป้งและน้ำตาล`
-      }
-    }
-    // 4. Durian / Fruits (ทุเรียน / มังคุด / ยางพารา)
-    else if (name.includes("durian") || name.includes("rubber") || name.includes("palm")) {
-      if (loc.region === "Eastern" || loc.region === "Southern") {
-        climateScore = 95
-        regionalFit = "highly_suitable"
-        waterAvailability = "high"
-        bestMonthsTh = "พฤษภาคม - สิงหาคม"
-        regionalReasonTh = `${loc.regionTh} มีปริมาณฝนชุกและความชื้นในอากาศสูง สอดคล้องกับพืชเศรษฐกิจเขตร้อนชื้น`
-      } else {
-        climateScore = 60
-        regionalFit = "poorly_suitable"
-        regionalFitLabelTh = "ต้องมีระบบน้ำและปรับสภาพแวดล้อมเป็นพิเศษ"
-        regionalReasonTh = `อากาศใน${loc.regionTh} อาจแห้งแล้งเกินไป ต้องมีแหล่งน้ำสปริงเกอร์สม่ำเสมอตลอดปี`
-      }
-    }
-    // 5. Cold-season vegetables / Tomato (มะเขือเทศ / กะหล่ำปลี / ผักเมืองหนาว)
-    else if (name.includes("tomato") || crop.category.toLowerCase().includes("vegetable")) {
-      if (season === "winter" || loc.region === "Northern") {
-        climateScore = 94
-        regionalFit = "highly_suitable"
-        bestMonthsTh = "ตุลาคม - กุมภาพันธ์ (ผลผลิตสมบูรณ์ ผิวสวย ไม่แตก)"
-        regionalReasonTh = `อากาศเย็นของฤดูหนาวช่วยให้ผักสะสมสารอาหาร ลดการเกิดโรคราและแมลงศัตรูพืช`
-      } else if (season === "summer") {
-        climateScore = 65
-        regionalFit = "moderately_suitable"
-        regionalReasonTh = "อากาศร้อนจัดอาจทำให้ดอกฝ่อและติดผลน้อย ควรพรางแสงด้วยซาแรน 50%"
-      }
-    }
-
-    return {
-      cropId: crop.id,
-      cropName: crop.name,
-      cropNameTh: crop.nameTh,
-      province: loc.nameTh,
-      region: loc.region,
-      regionTh: loc.regionTh,
-      season,
-      seasonLabelTh,
-      waterAvailability,
-      climateScore,
-      regionalFit,
-      regionalFitLabelTh,
-      regionalReasonTh,
-      bestPlantingMonthsTh: bestMonthsTh,
-    }
   }
 }
 
