@@ -106,15 +106,22 @@ These are product tuning values, not agronomic facts. Adjust them with tests.
 
 | Constant                              | Starting value |
 | ------------------------------------- | -------------- |
-| `TEXTURE_NOT_PREFERRED_PENALTY`       | 15             |
+| `TEXTURE_PENALTY_PER_STEP` (clay ↔ loam ↔ sandy, from the nearest preferred texture) | 10 (1 step) / 20 (2 steps) |
 | `PH_BELOW_PENALTY_PER_STEP` (per started 0.5 pH) | 8 (cap 40) |
 | `PH_ABOVE_PENALTY_PER_STEP` (per started 0.5 pH) | 12 (cap 50) |
-| `ORGANIC_MATTER_BELOW_MIN_PENALTY`    | 10             |
-| `NUTRIENT_BELOW_MIN_PENALTY` (N/P/K)  | 5 each         |
+| `PH_OFF_OPTIMAL_PENALTY_PER_UNIT` (distance from `phOptimal`, inside the range, rounded) | 5 per pH unit (cap 5) |
+| `ORGANIC_MATTER_PENALTY_PER_LEVEL`    | 10 per level below the minimum |
+| `NUTRIENT_PENALTY_PER_LEVEL` (N/P/K)  | 5 per level below the minimum, each |
 | `HARD_PH_RAISE_GAP`                   | 1.0 pH unit    |
 | `NOT_FEASIBLE_PH_RAISE_GAP`           | 2.0 pH units   |
 | `NOT_FEASIBLE_PH_LOWER_GAP`           | 1.0 pH unit    |
 | `NOT_FEASIBLE_MAX_SCORE`              | 39             |
+
+Scoring rules:
+
+* **Off-optimum pH** is measured on pH clamped to the crop range. Outside the range it stays at its edge value and `ph_low` / `ph_high` add on top, so moving further from the optimum never raises the score
+* **Organic matter and nitrogen count once.** When either level is estimated from the other (lab: N from organic matter; test kit: organic matter from N), they are one measurement: only the larger of the two penalties is applied (the measured factor wins a tie). Reasons still mention both
+* **Levels below the minimum** are counted: low against a "high" minimum is 2 levels
 
 Difficulty, checked in this order:
 

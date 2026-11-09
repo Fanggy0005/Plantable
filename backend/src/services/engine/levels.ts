@@ -6,6 +6,11 @@ export function isBelow(level: NutrientLevel, minimum: NutrientLevel): boolean {
   return LEVEL_RANK[level] < LEVEL_RANK[minimum]
 }
 
+/** How many levels the soil is below the crop minimum: 0, 1 or 2. */
+export function levelsBelow(level: NutrientLevel, minimum: NutrientLevel): number {
+  return Math.max(0, LEVEL_RANK[minimum] - LEVEL_RANK[level])
+}
+
 /** Find the level whose [min, max) range contains the value. */
 export function classifyValue(
   nutrient: Nutrient,

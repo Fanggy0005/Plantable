@@ -95,11 +95,12 @@ Start at 100 and subtract penalties. Each penalty represents how much soil work 
 
 | Factor                                | Penalty basis                                   |
 | ------------------------------------- | ----------------------------------------------- |
-| Texture not in the crop's preferred list | Fixed penalty                                |
+| Texture not in the crop's preferred list | Per step from the nearest preferred texture (clay ↔ loam ↔ sandy) |
 | pH below crop range                   | Per 0.5 pH unit below the minimum, capped       |
 | pH above crop range                   | Per 0.5 pH unit above the maximum, capped, larger than "below" because lowering pH is harder |
-| Organic matter below crop minimum     | Fixed penalty                                   |
-| N / P / K below crop minimum level    | Small penalty each (fixable with fertilizer)    |
+| pH away from the crop's optimum       | Small, by distance from `phOptimal` inside the range |
+| Organic matter below crop minimum     | Per level below the minimum                     |
+| N / P / K below crop minimum level    | Small penalty per level below, each (fixable with fertilizer). When organic matter and N come from one measurement, only the larger of the two counts |
 
 A "high" nutrient level is not penalized. With only three levels, "high" means "enough, no fertilizer needed", not "toxic".
 

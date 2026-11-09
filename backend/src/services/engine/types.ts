@@ -128,6 +128,7 @@ export type PenaltyFactor =
   | "texture"
   | "ph_low"
   | "ph_high"
+  | "ph_off_optimal"
   | "organic_matter"
   | "nitrogen"
   | "phosphorus"

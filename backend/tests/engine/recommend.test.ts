@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test"
 import { recommendCrops } from "../../src/services/engine"
-import type { LabSoilInput, RankedCrop } from "../../src/services/engine"
+import type { LabSoilInput, PenaltyFactor, RankedCrop, SiteInput, SoilInput, TestKitSoilInput } from "../../src/services/engine"
 import { THRESHOLDS, UPLAND_LOAM_RAINFED, crop, requirement } from "./fixtures"
+
+function penalty(r: RankedCrop, factor: PenaltyFactor): number {
+  return r.penalties.find((p) => p.factor === factor)?.points ?? 0
+}
 
 // pH 6.5, organic matter / P / K all "medium": meets every default requirement
 const GOOD_SOIL: LabSoilInput = {
@@ -12,7 +16,7 @@ const GOOD_SOIL: LabSoilInput = {
   potassiumMgKg: 80,
 }
 
-function rankOne(soil: LabSoilInput, req = requirement(), site = UPLAND_LOAM_RAINFED): RankedCrop {
+function rankOne(soil: SoilInput, req = requirement(), site: SiteInput = UPLAND_LOAM_RAINFED): RankedCrop {
   const result = recommendCrops(site, soil, [crop("A", req)], THRESHOLDS)
   const ranked = result.ranked[0]
   if (!ranked) throw new Error("crop was not ranked")
@@ -28,22 +32,50 @@ describe("score and difficulty", () => {
     expect(r.penalties).toEqual([])
   })
 
-  it("penalizes a texture the crop does not prefer", () => {
-    const r = rankOne(GOOD_SOIL, requirement({ preferredTextures: ["clay"] }))
-    expect(r.penalties).toEqual([{ factor: "texture", points: 15 }])
-    expect(r.score).toBe(85)
+  it("penalizes texture by steps from the nearest preferred texture (clay ↔ loam ↔ sandy)", () => {
+    const oneStep = rankOne(GOOD_SOIL, requirement({ preferredTextures: ["clay"] }))
+    expect(oneStep.penalties).toEqual([{ factor: "texture", points: 10 }])
+    expect(oneStep.score).toBe(90)
+
+    const sandy = { ...UPLAND_LOAM_RAINFED, soilTexture: "sandy" } as const
+    expect(rankOne(GOOD_SOIL, requirement({ preferredTextures: ["clay"] }), sandy).penalties).toEqual([
+      { factor: "texture", points: 20 },
+    ])
+    // the nearest preferred texture counts
+    expect(rankOne(GOOD_SOIL, requirement({ preferredTextures: ["clay", "loam"] }), sandy).penalties).toEqual([
+      { factor: "texture", points: 10 },
+    ])
   })
 
   it("penalizes low pH per started 0.5 unit, capped", () => {
-    expect(rankOne({ ...GOOD_SOIL, ph: 5.0 }).penalties).toEqual([{ factor: "ph_low", points: 8 }])
-    expect(rankOne({ ...GOOD_SOIL, ph: 4.9 }).penalties).toEqual([{ factor: "ph_low", points: 16 }])
-    expect(rankOne({ ...GOOD_SOIL, ph: 3.0 }).penalties).toEqual([{ factor: "ph_low", points: 40 }])
+    expect(penalty(rankOne({ ...GOOD_SOIL, ph: 5.0 }), "ph_low")).toBe(8)
+    expect(penalty(rankOne({ ...GOOD_SOIL, ph: 4.9 }), "ph_low")).toBe(16)
+    expect(penalty(rankOne({ ...GOOD_SOIL, ph: 3.0 }), "ph_low")).toBe(40)
   })
 
   it("penalizes high pH more than low pH", () => {
     const r = rankOne({ ...GOOD_SOIL, ph: 7.3 })
-    expect(r.penalties).toEqual([{ factor: "ph_high", points: 12 }])
+    expect(penalty(r, "ph_high")).toBe(12)
     expect(r.difficulty).toBe("hard")
+  })
+
+  it("penalizes distance from the optimal pH inside the range", () => {
+    // range 5.5–7.0, optimum 6.5
+    expect(rankOne(GOOD_SOIL).penalties).toEqual([])
+    expect(rankOne({ ...GOOD_SOIL, ph: 6.0 }).penalties).toEqual([{ factor: "ph_off_optimal", points: 3 }])
+    expect(rankOne({ ...GOOD_SOIL, ph: 5.5 }).penalties).toEqual([{ factor: "ph_off_optimal", points: 5 }])
+    expect(rankOne({ ...GOOD_SOIL, ph: 7.0 }).penalties).toEqual([{ factor: "ph_off_optimal", points: 3 }])
+    expect(rankOne({ ...GOOD_SOIL, ph: 6.0 }).reasons[0]).toContain("ค่าที่เหมาะที่สุดคือ 6.5")
+  })
+
+  it("never raises the score as pH moves further from the optimum", () => {
+    for (const phs of [
+      [6.5, 6.2, 6.0, 5.8, 5.5, 5.4, 5.0, 4.6, 4.0, 3.5],
+      [6.5, 6.8, 7.0, 7.1, 7.5, 8.0],
+    ]) {
+      const scores = phs.map((ph) => rankOne({ ...GOOD_SOIL, ph }).score)
+      expect(scores).toEqual([...scores].sort((a, b) => b - a))
+    }
   })
 
   it("rates a small pH gap below range as moderate, a large one as hard", () => {
@@ -80,6 +112,44 @@ describe("score and difficulty", () => {
 
   it("does not penalize high nutrient levels", () => {
     expect(rankOne({ ...GOOD_SOIL, phosphorusMgKg: 50, potassiumMgKg: 200 }).penalties).toEqual([])
+  })
+
+  it("penalizes per level below the minimum", () => {
+    const high = requirement({ minPhosphorusLevel: "high", minNitrogenLevel: "low" })
+    expect(penalty(rankOne({ ...GOOD_SOIL, phosphorusMgKg: 15 }, high), "phosphorus")).toBe(5)
+    expect(penalty(rankOne({ ...GOOD_SOIL, phosphorusMgKg: 5 }, high), "phosphorus")).toBe(10)
+
+    const omHigh = requirement({ minOrganicMatterLevel: "high", minNitrogenLevel: "low" })
+    expect(penalty(rankOne({ ...GOOD_SOIL, organicMatterPct: 1.0 }, omHigh), "organic_matter")).toBe(20)
+  })
+})
+
+describe("organic matter and nitrogen from one measurement", () => {
+  it("lab: low organic matter is not also counted as low nitrogen", () => {
+    const r = rankOne({ ...GOOD_SOIL, organicMatterPct: 1.0 })
+    expect(r.penalties).toEqual([{ factor: "organic_matter", points: 10 }])
+    // the reason still tells the farmer nitrogen is low too
+    expect(r.reasons.some((x) => x.includes("ประเมินจากอินทรียวัตถุ"))).toBe(true)
+  })
+
+  it("lab: keeps the nitrogen penalty when only the nitrogen minimum is missed", () => {
+    const r = rankOne(GOOD_SOIL, requirement({ minNitrogenLevel: "high" }))
+    expect(r.penalties).toEqual([{ factor: "nitrogen", points: 5 }])
+  })
+
+  it("test kit: counts low nitrogen once, keeping the larger penalty", () => {
+    const kit: TestKitSoilInput = {
+      inputMode: "test_kit",
+      ph: 6.5,
+      nitrogenLevel: "low",
+      phosphorusLevel: "medium",
+      potassiumLevel: "medium",
+    }
+    expect(rankOne(kit).penalties).toEqual([{ factor: "organic_matter", points: 10 }])
+    // tie (10 vs 10): the measured factor, nitrogen, is kept
+    expect(rankOne(kit, requirement({ minNitrogenLevel: "high" })).penalties).toEqual([
+      { factor: "nitrogen", points: 10 },
+    ])
   })
 })
 

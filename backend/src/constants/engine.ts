@@ -3,7 +3,8 @@
 
 export const MAX_SCORE = 100
 
-export const TEXTURE_NOT_PREFERRED_PENALTY = 15
+// Texture is ordinal (clay ↔ loam ↔ sandy). Penalty per step away from the nearest preferred texture.
+export const TEXTURE_PENALTY_PER_STEP = 10
 
 export const PH_STEP = 0.5
 export const PH_BELOW_PENALTY_PER_STEP = 8
@@ -11,8 +12,14 @@ export const PH_BELOW_PENALTY_CAP = 40
 export const PH_ABOVE_PENALTY_PER_STEP = 12
 export const PH_ABOVE_PENALTY_CAP = 50
 
-export const ORGANIC_MATTER_BELOW_MIN_PENALTY = 10
-export const NUTRIENT_BELOW_MIN_PENALTY = 5
+// Distance from the crop's optimal pH, measured inside its range (rounded to whole points).
+// Separates crops that are all "in range" and keeps the score continuous at the range edge.
+export const PH_OFF_OPTIMAL_PENALTY_PER_UNIT = 5
+export const PH_OFF_OPTIMAL_PENALTY_CAP = 5
+
+// Per level below the crop minimum (low → medium = 1 level, low → high = 2 levels)
+export const ORGANIC_MATTER_PENALTY_PER_LEVEL = 10
+export const NUTRIENT_PENALTY_PER_LEVEL = 5
 
 // Difficulty thresholds (pH units)
 export const HARD_PH_RAISE_GAP = 1.0
