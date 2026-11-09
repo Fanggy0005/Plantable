@@ -35,11 +35,25 @@ const STANDARD_FERTILIZER: SampleCropAgronomy["fertilizer"] = {
   potassium: [6, 4, 2],
 }
 
+/** Legumes fix their own nitrogen: a small starter N dose, regardless of soil level. */
+const LEGUME_FERTILIZER: SampleCropAgronomy["fertilizer"] = {
+  nitrogen: [3, 3, 3],
+  phosphorus: [6, 4, 2],
+  potassium: [6, 4, 2],
+}
+
 const MEDIUM_MINIMUMS = {
   minOrganicMatterLevel: "medium",
   minNitrogenLevel: "medium",
   minPhosphorusLevel: "medium",
   minPotassiumLevel: "medium",
+} as const
+
+const LOW_MINIMUMS = {
+  minOrganicMatterLevel: "low",
+  minNitrogenLevel: "low",
+  minPhosphorusLevel: "low",
+  minPotassiumLevel: "low",
 } as const
 
 // pH ranges are carried over from the v1 seed. They are not cited either.
@@ -147,7 +161,169 @@ export const SAMPLE_CROP_AGRONOMY: Record<string, SampleCropAgronomy> = {
     phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
     ...MEDIUM_MINIMUMS,
     minNitrogenLevel: "low",
-    fertilizer: { nitrogen: [3, 3, 3], phosphorus: [6, 4, 2], potassium: [6, 4, 2] },
+    fertilizer: LEGUME_FERTILIZER,
+  },
+
+  // ---------------- Field crops (พืชไร่) ----------------
+  "Mung Bean": {
+    allowedLandTypes: ["upland", "lowland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "sandy"],
+    phMin: 5.5, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    minNitrogenLevel: "low",
+    fertilizer: LEGUME_FERTILIZER,
+  },
+  Peanut: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["sandy", "loam"],
+    phMin: 5.5, phMax: 7.0, phOptimal: 6.0,
+    ...MEDIUM_MINIMUMS,
+    minOrganicMatterLevel: "low",
+    minNitrogenLevel: "low",
+    fertilizer: LEGUME_FERTILIZER,
+  },
+  Sorghum: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "clay", "sandy"],
+    phMin: 5.5, phMax: 7.5, phOptimal: 6.5,
+    ...LOW_MINIMUMS,
+    minNitrogenLevel: "medium",
+    fertilizer: { nitrogen: [10, 8, 5], phosphorus: [4, 3, 2], potassium: [4, 3, 2] },
+  },
+  Sesame: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["sandy", "loam"],
+    phMin: 5.5, phMax: 7.5, phOptimal: 6.5,
+    ...LOW_MINIMUMS,
+    fertilizer: { nitrogen: [6, 4, 2], phosphorus: [4, 3, 2], potassium: [4, 3, 2] },
+  },
+  Sunflower: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "clay"],
+    phMin: 6.0, phMax: 7.5, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: { nitrogen: [10, 8, 5], phosphorus: [6, 4, 2], potassium: [6, 4, 2] },
+  },
+  "Sweet Potato": {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["sandy", "loam"],
+    phMin: 5.5, phMax: 6.5, phOptimal: 6.0,
+    ...LOW_MINIMUMS,
+    minPotassiumLevel: "medium",
+    fertilizer: { nitrogen: [6, 4, 2], phosphorus: [4, 3, 2], potassium: [10, 8, 4] },
+  },
+
+  // ---------------- Vegetables (พืชผัก) ----------------
+  Watermelon: {
+    allowedLandTypes: ["upland", "lowland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["sandy", "loam"],
+    phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: { nitrogen: [12, 9, 6], phosphorus: [8, 6, 3], potassium: [12, 9, 6] },
+  },
+  Cucumber: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["loam"],
+    phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: { nitrogen: [12, 9, 6], phosphorus: [8, 6, 3], potassium: [10, 8, 4] },
+  },
+  Pumpkin: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "sandy"],
+    phMin: 5.5, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: STANDARD_FERTILIZER,
+  },
+  "Yardlong Bean": {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["loam"],
+    phMin: 5.5, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    minNitrogenLevel: "low",
+    fertilizer: LEGUME_FERTILIZER,
+  },
+  Eggplant: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["loam", "sandy"],
+    phMin: 5.5, phMax: 6.8, phOptimal: 6.0,
+    ...MEDIUM_MINIMUMS,
+    minOrganicMatterLevel: "high",
+    fertilizer: { nitrogen: [14, 10, 6], phosphorus: [8, 6, 3], potassium: [10, 8, 4] },
+  },
+  "Sweet Corn": {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["loam", "clay"],
+    phMin: 5.8, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: { nitrogen: [16, 12, 8], phosphorus: [8, 6, 3], potassium: [8, 6, 3] },
+  },
+  "Chinese Kale": {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "year_round",
+    preferredTextures: ["loam"],
+    phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    minOrganicMatterLevel: "high",
+    fertilizer: { nitrogen: [14, 10, 6], phosphorus: [6, 4, 2], potassium: [6, 4, 2] },
+  },
+  "Water Spinach": {
+    allowedLandTypes: ["lowland", "upland"],
+    minWaterSupply: "year_round",
+    preferredTextures: ["clay", "loam"],
+    phMin: 5.5, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    minPhosphorusLevel: "low",
+    minPotassiumLevel: "low",
+    fertilizer: { nitrogen: [12, 8, 4], phosphorus: [4, 3, 2], potassium: [4, 3, 2] },
+  },
+  "Choy Sum": {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "year_round",
+    preferredTextures: ["loam"],
+    phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    minOrganicMatterLevel: "high",
+    fertilizer: { nitrogen: [12, 8, 4], phosphorus: [6, 4, 2], potassium: [6, 4, 2] },
+  },
+
+  // ---------------- Spices and herbs (เครื่องเทศ/สมุนไพร) ----------------
+  Shallot: {
+    allowedLandTypes: ["upland", "lowland"],
+    minWaterSupply: "seasonal_irrigation",
+    preferredTextures: ["loam", "sandy"],
+    phMin: 6.0, phMax: 7.0, phOptimal: 6.5,
+    ...MEDIUM_MINIMUMS,
+    fertilizer: { nitrogen: [12, 9, 6], phosphorus: [8, 6, 3], potassium: [12, 9, 6] },
+  },
+  Ginger: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "sandy"],
+    phMin: 5.5, phMax: 6.5, phOptimal: 6.0,
+    ...MEDIUM_MINIMUMS,
+    minOrganicMatterLevel: "high",
+    fertilizer: { nitrogen: [10, 8, 5], phosphorus: [6, 4, 2], potassium: [12, 9, 6] },
+  },
+  Lemongrass: {
+    allowedLandTypes: ["upland"],
+    minWaterSupply: "rainfed",
+    preferredTextures: ["loam", "sandy", "clay"],
+    phMin: 5.0, phMax: 7.0, phOptimal: 6.0,
+    ...LOW_MINIMUMS,
+    fertilizer: { nitrogen: [8, 6, 4], phosphorus: [4, 3, 2], potassium: [4, 3, 2] },
   },
 }
 

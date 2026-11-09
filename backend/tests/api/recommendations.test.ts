@@ -16,6 +16,7 @@ describe("POST /api/recommendations", () => {
     expect(data.ranked.length).toBeGreaterThan(0)
     expect(data.ineligible.map((c) => c.cropName)).toContain("Rice")
     expect(data.warnings).toContain(SAMPLE_DATA_WARNING)
+    expect(data.ranked.every((c) => typeof c.group === "string" && typeof c.category === "string")).toBe(true)
 
     const scores = data.ranked.map((c) => c.score)
     expect(scores).toEqual([...scores].sort((a, b) => b - a))
@@ -82,7 +83,27 @@ describe("crops", () => {
   it("GET /api/crops lists the catalog", async () => {
     const res = await call<Array<{ name: string }>>("GET", "/api/crops")
     expect(res.status).toBe(200)
-    expect(res.body.data.length).toBeGreaterThanOrEqual(12)
+    expect(res.body.data.length).toBeGreaterThanOrEqual(30)
+  })
+
+  it("filters by group and by category, and returns the derived group", async () => {
+    const field = await call<Array<{ name: string; group: string; category: string }>>(
+      "GET",
+      "/api/crops?group=field_crop"
+    )
+    expect(field.status).toBe(200)
+    expect(field.body.data.length).toBeGreaterThan(0)
+    expect(field.body.data.every((c) => c.group === "field_crop")).toBe(true)
+    expect(field.body.data.map((c) => c.name)).toContain("Mung Bean")
+
+    const leafy = await call<Array<{ category: string; group: string }>>("GET", "/api/crops?category=leafy_vegetable")
+    expect(leafy.body.data.length).toBeGreaterThan(0)
+    expect(leafy.body.data.every((c) => c.category === "leafy_vegetable" && c.group === "horticulture")).toBe(true)
+  })
+
+  it("rejects an unknown group or category", async () => {
+    expect((await call("GET", "/api/crops?group=flowers")).status).toBe(422)
+    expect((await call("GET", "/api/crops?category=Grain")).status).toBe(422)
   })
 
   it("GET /api/crops/:id returns requirement and stages", async () => {

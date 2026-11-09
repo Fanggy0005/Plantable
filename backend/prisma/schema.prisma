@@ -41,6 +41,21 @@ enum NutrientLevel {
   high
 }
 
+// Crop group (field crop / tree crop / horticulture) is derived from this in
+// src/constants/crop-categories.ts
+enum CropCategory {
+  cereal
+  legume
+  oilseed
+  root_tuber
+  sugar_crop
+  plantation
+  fruit
+  fruit_vegetable
+  leafy_vegetable
+  spice_herb
+}
+
 enum Nutrient {
   organic_matter
   nitrogen
@@ -160,7 +175,7 @@ model Crop {
   name           String   @unique
   nameTh         String
   scientificName String?
-  category       String
+  category       CropCategory
   description    String?
   imageUrl       String?
   createdAt      DateTime @default(now())
@@ -172,6 +187,7 @@ model Crop {
   targetedByPlots  Plot[]
 
   @@index([name])
+  @@index([category])
 }
 
 model CropRequirement {

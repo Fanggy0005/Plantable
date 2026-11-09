@@ -11,7 +11,7 @@ The goal of every phase is to answer the two questions in `context.md` better.
 - [x] Next.js frontend with forest theme, TH/EN, dark mode, motion
 - [x] Elysia backend with Prisma + PostgreSQL
 - [x] Better Auth email/password, profile
-- [x] Crop catalog (12 crops) and crop detail
+- [x] Crop catalog (30 crops, grouped as field crop / tree crop / horticulture) and crop detail
 - [x] Recommendation engine v1 replaced by v2 (see 1.3)
 - [x] Generic soil improvement advice replaced by quantified soil plans (see 1.3)
 - [x] Analysis history per user replaced by plots + history per plot (see 1.4)
@@ -28,7 +28,7 @@ The goal of every phase is to answer the two questions in `context.md` better.
 - [~] Placeholder data seeded (`seed-data/sample-agronomy.ts`, source `SAMPLE…`); the API warns on every result
 - [ ] Collect sources (LDD / DOA) for: nutrient level thresholds, crop requirements, fertilizer rates and stages, lime rates, organic matter rates, lime/OM timing
 - [ ] Owner reviews the numbers before they are seeded
-- [ ] Replace sample values and sources for the current 12 crops
+- [ ] Replace sample values and sources for the current 30 crops
 
 ### 1.2 Schema v2
 - [x] Add Plot, enums, new SoilAnalysis fields, new master tables (see `database.md`)
@@ -75,7 +75,7 @@ The goal of every phase is to answer the two questions in `context.md` better.
 - [ ] Re-test and compare: before/after levels per plot over time
 - [ ] Share the soil plan to LINE; PDF uses the v2 plan
 - [ ] `/guide`: hand texture test (with pictures), where to get soil tested
-- [ ] Expand crops to about 25–30 common Thai crops, with sources
+- [~] Expand crops to about 25–30 common Thai crops, with sources (30 crops, 18 added, all with SAMPLE values; more tree crops and cool-climate crops wait for per-tree fertilizer rates and a region/climate filter)
 
 ---
 

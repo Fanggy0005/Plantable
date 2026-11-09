@@ -7,6 +7,20 @@ export type NutrientLevel = "low" | "medium" | "high"
 export type Difficulty = "easy" | "moderate" | "hard" | "not_feasible"
 export type PlanMode = "chemical" | "organic" | "combined"
 
+/** พืชไร่ · ไม้ยืนต้นเศรษฐกิจ · พืชสวน. The backend derives it from the category. */
+export type CropGroup = "field_crop" | "tree_crop" | "horticulture"
+export type CropCategory =
+  | "cereal"
+  | "legume"
+  | "oilseed"
+  | "root_tuber"
+  | "sugar_crop"
+  | "plantation"
+  | "fruit"
+  | "fruit_vegetable"
+  | "leafy_vegetable"
+  | "spice_herb"
+
 export type RecommendationLevel = "Excellent" | "Good" | "Fair" | "Poor" | "Not Recommended"
 
 export interface SiteInput {
@@ -65,7 +79,9 @@ export interface RankedCrop {
   cropId: string
   cropName: string
   cropNameTh: string
-  category: string
+  /** Missing on checks stored before crop groups existed. */
+  group?: CropGroup
+  category: CropCategory
   imageUrl: string | null
   score: number
   level: RecommendationLevel
@@ -165,7 +181,8 @@ export interface Crop {
   name: string
   nameTh: string
   scientificName?: string | null
-  category: string
+  group: CropGroup
+  category: CropCategory
   description?: string | null
   imageUrl?: string | null
 }

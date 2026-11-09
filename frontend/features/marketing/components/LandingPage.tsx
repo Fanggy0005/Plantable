@@ -64,7 +64,7 @@ function ProductPreview() {
 
         {/* Top match */}
         <div className="mt-5 flex items-center gap-4 rounded-2xl bg-secondary/70 p-4">
-          <CropIcon name="Rice" category="Grain" size="lg" />
+          <CropIcon name="Rice" category="cereal" size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold text-muted-foreground">{t.preview.topMatch}</p>
             <p className="truncate text-lg font-bold">{t.preview.crop}</p>

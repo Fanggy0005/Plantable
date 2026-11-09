@@ -86,16 +86,24 @@ Validation:
 
 ## GET /api/crops
 
-Query: `search?`, `category?`
+Query: `search?`, `group?`, `category?` (`category` wins when both are given; unknown values → 422)
 
 ```json
 {
   "success": true,
   "data": [
-    { "id": "uuid", "name": "Rice", "nameTh": "ข้าว", "category": "Grain", "imageUrl": null }
+    { "id": "uuid", "name": "Rice", "nameTh": "ข้าว", "group": "field_crop", "category": "cereal", "imageUrl": null }
   ]
 }
 ```
+
+| group          | Thai              | categories                                              |
+| -------------- | ----------------- | ------------------------------------------------------- |
+| `field_crop`   | พืชไร่             | `cereal`, `legume`, `oilseed`, `root_tuber`, `sugar_crop` |
+| `tree_crop`    | ไม้ยืนต้นเศรษฐกิจ    | `plantation`                                            |
+| `horticulture` | พืชสวน             | `fruit`, `fruit_vegetable`, `leafy_vegetable`, `spice_herb` |
+
+`group` is derived from `category` (`backend/src/constants/crop-categories.ts`) and is also returned on each crop in `POST /api/recommendations` → `ranked[]`.
 
 ## GET /api/crops/:id
 

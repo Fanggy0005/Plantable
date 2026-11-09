@@ -17,9 +17,9 @@ import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
 import { cropCatalogMessages } from "@/features/crop/catalog-messages"
 import { cn } from "@/lib/utils"
-import type { Crop } from "@/types"
+import type { Crop, CropGroup } from "@/types"
 
-const CATEGORIES = ["All", "Grain", "Cash Crop", "Fruit", "Vegetable"]
+const GROUPS: Array<CropGroup | "All"> = ["All", "field_crop", "tree_crop", "horticulture"]
 
 export default function CropsCatalogPage() {
   const t = useT(cropCatalogMessages).list
@@ -29,7 +29,7 @@ export default function CropsCatalogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState("All")
+  const [group, setGroup] = useState<CropGroup | "All">("All")
   const [reloadKey, setReloadKey] = useState(0)
   const [hasLoaded, setHasLoaded] = useState(false)
 
@@ -41,7 +41,7 @@ export default function CropsCatalogPage() {
       try {
         const data = await fetchCrops({
           search: search || undefined,
-          category: category !== "All" ? category : undefined,
+          group: group !== "All" ? group : undefined,
         })
         if (!cancelled) setCrops(data)
       } catch (err) {
@@ -60,11 +60,11 @@ export default function CropsCatalogPage() {
       cancelled = true
       clearTimeout(timeout)
     }
-  }, [search, category, reloadKey])
+  }, [search, group, reloadKey])
 
   const clearFilters = () => {
     setSearch("")
-    setCategory("All")
+    setGroup("All")
   }
 
   return (
@@ -105,15 +105,15 @@ export default function CropsCatalogPage() {
           className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:px-0 lg:pb-0"
         >
           <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-(--shadow-card)">
-            {CATEGORIES.map((cat) => {
-              const active = category === cat
+            {GROUPS.map((cat) => {
+              const active = group === cat
               return (
                 <button
                   key={cat}
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  onClick={() => setCategory(cat)}
+                  onClick={() => setGroup(cat)}
                   className={cn(
                     "relative h-9 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors",
                     active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
@@ -126,7 +126,7 @@ export default function CropsCatalogPage() {
                       transition={{ type: "spring", stiffness: 480, damping: 36 }}
                     />
                   )}
-                  <span className="relative">{common.categories[cat] ?? cat}</span>
+                  <span className="relative">{common.groups[cat] ?? cat}</span>
                 </button>
               )
             })}

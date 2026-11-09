@@ -45,8 +45,24 @@ export const commonMessages = defineMessages({
       Poor: "ความเหมาะสมต่ำ",
       "Not Recommended": "ไม่แนะนำ",
     } as Record<string, string>,
-    categories: {
+    groups: {
       All: "ทั้งหมด",
+      field_crop: "พืชไร่",
+      tree_crop: "ไม้ยืนต้น",
+      horticulture: "พืชสวน",
+    } as Record<string, string>,
+    categories: {
+      cereal: "ธัญพืช",
+      legume: "พืชตระกูลถั่ว",
+      oilseed: "พืชน้ำมัน",
+      root_tuber: "พืชหัว",
+      sugar_crop: "พืชให้น้ำตาล",
+      plantation: "ไม้ยืนต้นเศรษฐกิจ",
+      fruit: "ไม้ผล",
+      fruit_vegetable: "ผักกินผล",
+      leafy_vegetable: "ผักกินใบ",
+      spice_herb: "เครื่องเทศและสมุนไพร",
+      // Categories saved in guest history before the category enum
       Grain: "ธัญพืช",
       "Cash Crop": "พืชเศรษฐกิจ",
       Fruit: "ไม้ผล",
@@ -116,8 +132,24 @@ export const commonMessages = defineMessages({
       Poor: "Poor",
       "Not Recommended": "Not recommended",
     } as Record<string, string>,
-    categories: {
+    groups: {
       All: "All",
+      field_crop: "Field crops",
+      tree_crop: "Tree crops",
+      horticulture: "Horticulture",
+    } as Record<string, string>,
+    categories: {
+      cereal: "Cereal",
+      legume: "Legume",
+      oilseed: "Oilseed",
+      root_tuber: "Root crop",
+      sugar_crop: "Sugar crop",
+      plantation: "Plantation tree",
+      fruit: "Fruit",
+      fruit_vegetable: "Fruit vegetable",
+      leafy_vegetable: "Leafy vegetable",
+      spice_herb: "Spice & herb",
+      // Categories saved in guest history before the category enum
       Grain: "Grain",
       "Cash Crop": "Cash crop",
       Fruit: "Fruit",

@@ -4,12 +4,18 @@ import {
   Candy,
   Carrot,
   Cherry,
+  Citrus,
   Droplets,
   Flame,
+  Flower2,
   Grape,
+  Leaf,
+  LeafyGreen,
   Nut,
   Popcorn,
+  Salad,
   Sprout,
+  Sun,
   TreePalm,
   Wheat,
   type LucideIcon,
@@ -29,13 +35,47 @@ const CROP_ICONS: Record<string, LucideIcon> = {
   longan: Grape,
   chili: Flame,
   soybean: Bean,
+  "mung bean": Bean,
+  peanut: Nut,
+  sorghum: Wheat,
+  sesame: Sprout,
+  sunflower: Sun,
+  "sweet potato": Carrot,
+  watermelon: Citrus,
+  cucumber: Salad,
+  pumpkin: Apple,
+  "yardlong bean": Bean,
+  eggplant: Grape,
+  "sweet corn": Popcorn,
+  "chinese kale": LeafyGreen,
+  "water spinach": Leaf,
+  "choy sum": LeafyGreen,
+  shallot: Flower2,
+  ginger: Carrot,
+  lemongrass: Sprout,
 }
 
+const FIELD = "bg-warning-soft text-warning ring-warning/15"
+const TREE = "bg-secondary text-primary ring-primary/10"
+const FRUIT = "bg-danger-soft text-chart-5 ring-chart-5/15"
+const VEGETABLE = "bg-success-soft text-success ring-success/15"
+
 const CATEGORY_TONE: Record<string, string> = {
-  Grain: "bg-warning-soft text-warning ring-warning/15",
-  "Cash Crop": "bg-secondary text-primary ring-primary/10",
-  Fruit: "bg-danger-soft text-chart-5 ring-chart-5/15",
-  Vegetable: "bg-success-soft text-success ring-success/15",
+  cereal: FIELD,
+  legume: FIELD,
+  oilseed: FIELD,
+  root_tuber: FIELD,
+  sugar_crop: FIELD,
+  plantation: TREE,
+  fruit: FRUIT,
+  fruit_vegetable: VEGETABLE,
+  leafy_vegetable: VEGETABLE,
+  spice_herb: VEGETABLE,
+  // Categories saved in guest history before the category enum
+  Grain: FIELD,
+  "Cash Crop": TREE,
+  Fruit: FRUIT,
+  Vegetable: VEGETABLE,
 }
 
 const SIZES = {

@@ -45,7 +45,7 @@ export function requirement(overrides: Partial<CropRequirementData> = {}): CropR
 }
 
 export function crop(name: string, req: CropRequirementData | null = requirement()): CropProfile {
-  return { id: name.toLowerCase(), name, nameTh: name, category: "Test", imageUrl: null, requirement: req }
+  return { id: name.toLowerCase(), name, nameTh: name, category: "cereal", imageUrl: null, requirement: req }
 }
 
 export const LIME_RATES: LimeRateData[] = [

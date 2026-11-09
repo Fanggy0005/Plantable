@@ -36,7 +36,7 @@ import { useFormat, useT } from "@/lib/i18n"
 import { commonMessages } from "@/lib/i18n/messages/common"
 import { CURRENT_CHECK_KEY, readCurrentCheck } from "@/lib/soil-check"
 import { cn } from "@/lib/utils"
-import type { CropRequirement, PlanMode, RankedCrop, SoilPlan } from "@/types"
+import type { CropGroup, CropRequirement, PlanMode, RankedCrop, SoilPlan } from "@/types"
 
 type SectionId = "ranking" | "soil-plan" | "weather"
 
@@ -124,6 +124,7 @@ const subscribeToNothing = () => () => {}
 
 const MAX_AREA_RAI = 100_000
 const PLAN_DEBOUNCE_MS = 300
+const GROUP_ORDER: CropGroup[] = ["field_crop", "tree_crop", "horticulture"]
 
 interface PlanResult {
   key: string
@@ -148,7 +149,7 @@ export default function ResultsPage() {
   // Default to the top-ranked crop until the user picks one
   const selectedCrop = ranked.find((c) => c.cropId === pickedId) ?? ranked[0] ?? null
   const selectedCropId = selectedCrop?.cropId ?? null
-  const [categoryFilter, setCategoryFilter] = useState<string>("All")
+  const [groupFilter, setGroupFilter] = useState<string>("All")
   const [exporting, setExporting] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -229,10 +230,10 @@ export default function ResultsPage() {
   if (!check) return <ResultsSkeleton />
 
   const { result } = check
-  const categories = ["All", ...Array.from(new Set(ranked.map((r) => r.category).filter(Boolean)))]
+  const groups = ["All", ...GROUP_ORDER.filter((g) => ranked.some((r) => r.group === g))]
   const filteredRankings = ranked
     .map((crop, index) => ({ crop, rank: index + 1 }))
-    .filter(({ crop }) => categoryFilter === "All" || crop.category === categoryFilter)
+    .filter(({ crop }) => groupFilter === "All" || crop.group === groupFilter)
 
   const topCrop = ranked[0]
   const selectedName = selectedCrop ? fmt.pick(selectedCrop.cropNameTh, selectedCrop.cropName) : undefined
@@ -318,15 +319,15 @@ export default function ResultsPage() {
                   aria-label={t.filterLabel}
                   className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0"
                 >
-                  {categories.map((cat) => {
-                    const active = categoryFilter === cat
+                  {groups.map((cat) => {
+                    const active = groupFilter === cat
                     return (
                       <button
                         key={cat}
                         type="button"
                         role="radio"
                         aria-checked={active}
-                        onClick={() => setCategoryFilter(cat)}
+                        onClick={() => setGroupFilter(cat)}
                         className={cn(
                           "relative h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
                           active
@@ -342,7 +343,7 @@ export default function ResultsPage() {
                           />
                         )}
                         <span className="relative">
-                          {cat === "All" ? t.allCount(ranked.length) : (common.categories[cat] ?? cat)}
+                          {cat === "All" ? t.allCount(ranked.length) : (common.groups[cat] ?? cat)}
                         </span>
                       </button>
                     )
@@ -358,7 +359,7 @@ export default function ResultsPage() {
                 description={ranked.length === 0 ? t.ineligibleDesc : t.noCropsInCategoryDesc}
                 action={
                   ranked.length > 0 && (
-                    <Button variant="outline" onClick={() => setCategoryFilter("All")}>
+                    <Button variant="outline" onClick={() => setGroupFilter("All")}>
                       {t.allCount(ranked.length)}
                     </Button>
                   )

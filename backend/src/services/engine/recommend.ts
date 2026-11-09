@@ -1,3 +1,4 @@
+import { CATEGORY_GROUP } from "../../constants/crop-categories"
 import { normalizeSoilLevels } from "./levels"
 import { buildReasons, calculatePenalties, calculateScore, determineDifficulty, getRecommendationLevel } from "./score"
 import { checkSite } from "./site-check"
@@ -59,6 +60,7 @@ export function recommendCrops(
 
     ranked.push({
       ...base,
+      group: CATEGORY_GROUP[crop.category],
       category: crop.category,
       imageUrl: crop.imageUrl,
       score,

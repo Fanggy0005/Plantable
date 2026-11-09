@@ -22,8 +22,8 @@ export const landingMessages = defineMessages({
       balance: "สมดุลธาตุอาหาร",
       ranking: "อันดับถัดไป",
       others: [
-        { name: "ข้าวโพด", nameEn: "Corn", category: "Grain", score: 84 },
-        { name: "ถั่วเหลือง", nameEn: "Soybean", category: "Grain", score: 78 },
+        { name: "ข้าวโพด", nameEn: "Corn", category: "cereal", score: 84 },
+        { name: "ถั่วเหลือง", nameEn: "Soybean", category: "legume", score: 78 },
       ],
       live: "ประมวลผลทันที",
     },
@@ -99,8 +99,8 @@ export const landingMessages = defineMessages({
       balance: "Nutrient balance",
       ranking: "Runners-up",
       others: [
-        { name: "Corn", nameEn: "Corn", category: "Grain", score: 84 },
-        { name: "Soybean", nameEn: "Soybean", category: "Grain", score: 78 },
+        { name: "Corn", nameEn: "Corn", category: "cereal", score: 84 },
+        { name: "Soybean", nameEn: "Soybean", category: "legume", score: 78 },
       ],
       live: "Instant results",
     },

@@ -8,6 +8,20 @@ export type NutrientLevel = "low" | "medium" | "high"
 export type Nutrient = "organic_matter" | "nitrogen" | "phosphorus" | "potassium"
 export type FertilizerNutrient = "nitrogen" | "phosphorus" | "potassium"
 
+/** พืชไร่ · ไม้ยืนต้นเศรษฐกิจ · พืชสวน. Derived from the category, not stored. */
+export type CropGroup = "field_crop" | "tree_crop" | "horticulture"
+export type CropCategory =
+  | "cereal"
+  | "legume"
+  | "oilseed"
+  | "root_tuber"
+  | "sugar_crop"
+  | "plantation"
+  | "fruit"
+  | "fruit_vegetable"
+  | "leafy_vegetable"
+  | "spice_herb"
+
 export type Difficulty = "easy" | "moderate" | "hard" | "not_feasible"
 export type RecommendationLevel = "Excellent" | "Good" | "Fair" | "Poor" | "Not Recommended"
 export type PlanMode = "chemical" | "organic" | "combined"
@@ -65,7 +79,7 @@ export interface CropProfile {
   id: string
   name: string
   nameTh: string
-  category: string
+  category: CropCategory
   imageUrl: string | null
   requirement: CropRequirementData | null
 }
@@ -128,7 +142,8 @@ export interface RankedCrop {
   cropId: string
   cropName: string
   cropNameTh: string
-  category: string
+  group: CropGroup
+  category: CropCategory
   imageUrl: string | null
   score: number
   level: RecommendationLevel

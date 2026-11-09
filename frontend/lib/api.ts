@@ -1,5 +1,7 @@
 import type {
   Crop,
+  CropCategory,
+  CropGroup,
   CropDetail,
   RecommendationResult,
   SiteInput,
@@ -65,10 +67,11 @@ export function buildSoilPlan(plan: SoilPlanRequest): Promise<SoilPlan> {
 // Crops (public)
 // ------------------------------------------------------------------
 
-export function fetchCrops(params?: { search?: string; category?: string }): Promise<Crop[]> {
+export function fetchCrops(params?: { search?: string; group?: CropGroup; category?: CropCategory }): Promise<Crop[]> {
   const query = new URLSearchParams()
   if (params?.search) query.set("search", params.search)
-  if (params?.category && params.category !== "All") query.set("category", params.category)
+  if (params?.group) query.set("group", params.group)
+  if (params?.category) query.set("category", params.category)
   const qs = query.toString()
   return request(`/api/crops${qs ? `?${qs}` : ""}`)
 }

@@ -129,15 +129,21 @@ Normal users must never modify master data.
 | name           | String   | Unique, English                    |
 | nameTh         | String   |                                    |
 | scientificName | String?  |                                    |
-| category       | String   | Grain, Vegetable, Fruit, Field crop, … |
+| category       | CropCategory | Enum, see below. The group is derived from it, not stored |
 | description    | String?  |                                    |
 | imageUrl       | String?  |                                    |
 | createdAt      | DateTime |                                    |
 | updatedAt      | DateTime |                                    |
 
-Index: `name`.
+Index: `name`, `category`.
 
-Target: around 25–30 crops commonly grown in Thailand.
+`CropCategory` → group (mapping in `backend/src/constants/crop-categories.ts`):
+
+* **field_crop** (พืชไร่): `cereal`, `legume`, `oilseed`, `root_tuber`, `sugar_crop`
+* **tree_crop** (ไม้ยืนต้นเศรษฐกิจ): `plantation`
+* **horticulture** (พืชสวน): `fruit`, `fruit_vegetable`, `leafy_vegetable`, `spice_herb`
+
+Current catalog: 30 crops. `tests/seed-data.test.ts` checks that every crop has agronomy data, a valid category and consistent pH and fertilizer values.
 
 ## CropRequirement (1:1 with Crop)
 

@@ -1,9 +1,12 @@
 import { prisma } from "../config/db"
+import { categoriesInGroup } from "../constants/crop-categories"
 import type { Prisma } from "../generated/prisma"
+import type { CropCategory, CropGroup } from "../services/engine/types"
 
 export interface CropFilterParams {
   search?: string
-  category?: string
+  group?: CropGroup
+  category?: CropCategory
 }
 
 export class CropRepository {
@@ -18,7 +21,9 @@ export class CropRepository {
       ]
     }
     if (params.category) {
-      where.category = { equals: params.category, mode: "insensitive" }
+      where.category = params.category
+    } else if (params.group) {
+      where.category = { in: categoriesInGroup(params.group) }
     }
 
     return prisma.crop.findMany({ where, orderBy: { name: "asc" } })

@@ -1,4 +1,5 @@
 import { t } from "elysia"
+import { CROP_CATEGORIES, CROP_GROUPS } from "../constants/crop-categories"
 import { PlanModeSchema, SiteInputSchema, SoilInputSchema } from "./soil-input.schema"
 
 const strict = { additionalProperties: false } as const
@@ -7,7 +8,10 @@ export const IdParamSchema = t.Object({ id: t.String({ format: "uuid", error: "I
 
 export const CropQuerySchema = t.Object({
   search: t.Optional(t.String({ maxLength: 100 })),
-  category: t.Optional(t.String({ maxLength: 50 })),
+  group: t.Optional(t.Union(CROP_GROUPS.map((g) => t.Literal(g)), { error: `group must be one of ${CROP_GROUPS.join(", ")}` })),
+  category: t.Optional(
+    t.Union(CROP_CATEGORIES.map((c) => t.Literal(c)), { error: `category must be one of ${CROP_CATEGORIES.join(", ")}` })
+  ),
 })
 
 export const RecommendationRequestSchema = t.Object(
